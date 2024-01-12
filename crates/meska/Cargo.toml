@@ -8,11 +8,13 @@ edition = "2021"
 [dependencies]
 futures = { version = "0.3", features = ["executor"] }
 tokio = { version = "1", features = ["sync"], optional = true }
+meska-derive = { version = "0.1", path = "../meska-derive", optional = true }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }
 
 [features]
+derive = ["dep:meska-derive"]
 mpsc = ["dep:tokio"]
 request = ["dep:tokio"]
-default = ["mpsc", "request"]
+default = ["mpsc", "request", "derive"]

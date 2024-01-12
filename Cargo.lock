@@ -193,7 +193,17 @@ name = "meska"
 version = "0.1.0"
 dependencies = [
  "futures",
+ "meska-derive",
  "tokio",
+]
+
+[[package]]
+name = "meska-derive"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
