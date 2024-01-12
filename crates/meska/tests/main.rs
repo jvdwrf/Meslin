@@ -52,4 +52,11 @@ async fn test_basic_sending() {
     assert!(matches!(receiver.recv().await.unwrap(), MyProtocol::A(1)));
     assert!(matches!(receiver.recv().await.unwrap(), MyProtocol::B(_)));
     assert!(matches!(receiver.recv().await.unwrap(), MyProtocol::C(_)));
+
+    sender
+        .send_msg(HelloWorld("hello".to_string()))
+        .await
+        .unwrap();
+
+    sender.send::<HelloWorld>("hello").await.unwrap();
 }

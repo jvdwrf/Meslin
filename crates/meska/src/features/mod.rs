@@ -5,6 +5,4 @@ pub mod mpsc;
 pub mod request;
 
 #[cfg(feature = "derive")]
-mod derive;
-#[cfg(feature = "derive")]
-pub use derive::*;
+pub use meska_derive::*;
