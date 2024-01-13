@@ -17,4 +17,6 @@ tokio = { version = "1", features = ["full"] }
 derive = ["dep:meska-derive"]
 mpsc = ["dep:tokio"]
 request = ["dep:tokio"]
-default = ["mpsc", "request", "derive"]
+broadcast = ["dep:tokio"]
+watch = ["dep:tokio"]
+default = ["mpsc", "request", "derive", "broadcast", "watch"]

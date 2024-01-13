@@ -19,18 +19,22 @@ impl<P> Sender<P> {
     }
 }
 
-impl<P> SendsProtocol for Sender<P>
+impl<P> SendProtocol for Sender<P>
 where
-    P: Send + 'static,
+    P: Send,
 {
     type Protocol = P;
 
     async fn send_protocol(
         &self,
         protocol: Self::Protocol,
-    ) -> Result<(), SendError<Self::Protocol>> {
-        self.sender.send(protocol).await.map_err(|e| SendError(e.0))
+    ) -> Result<(), Closed<Self::Protocol>> {
+        self.sender.send(protocol).await.map_err(|e| Closed(e.0))
     }
+}
+
+impl<P> TrySendProtocol for Sender<P> {
+    type Protocol = P;
 
     fn try_send_protocol(
         &self,
@@ -82,7 +86,7 @@ impl<P> UnboundedSender<P> {
     }
 }
 
-impl<P> SendsProtocol for UnboundedSender<P>
+impl<P> SendProtocol for UnboundedSender<P>
 where
     P: Send + 'static,
 {
@@ -91,9 +95,16 @@ where
     async fn send_protocol(
         &self,
         protocol: Self::Protocol,
-    ) -> Result<(), SendError<Self::Protocol>> {
-        self.sender.send(protocol).map_err(|e| SendError(e.0))
+    ) -> Result<(), Closed<Self::Protocol>> {
+        self.sender.send(protocol).map_err(|e| Closed(e.0))
     }
+}
+
+impl<P> TrySendProtocol for UnboundedSender<P>
+where
+    P: Send + 'static,
+{
+    type Protocol = P;
 
     fn try_send_protocol(
         &self,

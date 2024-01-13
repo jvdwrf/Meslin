@@ -2,12 +2,15 @@ use crate::*;
 use tokio::sync::oneshot;
 
 #[derive(Debug)]
-pub struct Request<A, B>(pub A, pub oneshot::Sender<B>);
+pub struct Request<A, B> {
+    pub msg: A,
+    pub tx: oneshot::Sender<B>,
+}
 
 impl<A, B> Request<A, B> {
-    pub fn new(a: A) -> (Self, oneshot::Receiver<B>) {
+    pub fn new(msg: A) -> (Self, oneshot::Receiver<B>) {
         let (sender, receiver) = oneshot::channel();
-        (Self(a, sender), receiver)
+        (Self { msg, tx: sender }, receiver)
     }
 }
 
@@ -24,6 +27,6 @@ where
     }
 
     fn cancel(self, _: Self::Output) -> Self::Input {
-        self.0
+        self.msg
     }
 }

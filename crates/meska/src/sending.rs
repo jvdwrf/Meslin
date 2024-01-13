@@ -8,51 +8,74 @@ use std::future::Future;
 /// This trait is implemented for all types that can send messages.
 ///
 /// Usage is more convenient through [`Sends`] instead of using these methods directly.
-pub trait SendsMessage<M>: Send + Sync {
-    fn send_msg(&self, msg: M) -> impl Future<Output = Result<(), SendError<M>>> + Send;
-
-    fn try_send_msg(&self, msg: M) -> Result<(), TrySendError<M>>;
-
-    fn send_msg_blocking(&self, msg: M) -> Result<(), SendError<M>> {
+pub trait SendMessage<M>: Send + Sync {
+    fn send_msg(&self, msg: M) -> impl Future<Output = Result<(), Closed<M>>> + Send;
+    fn send_msg_blocking(&self, msg: M) -> Result<(), Closed<M>> {
         futures::executor::block_on(Self::send_msg(self, msg))
     }
+}
+
+pub trait TrySendMessage<M>: Send + Sync {
+    fn try_send_msg(&self, msg: M) -> Result<(), TrySendError<M>>;
 }
 
 //-------------------------------------
 // SendsProtocol
 //-------------------------------------
 
-pub trait SendsProtocol: Send + Sync {
+/// Send a message, and wait for space
+pub trait SendProtocol {
     type Protocol;
     fn send_protocol(
         &self,
         protocol: Self::Protocol,
-    ) -> impl Future<Output = Result<(), SendError<Self::Protocol>>> + Send;
-
-    fn try_send_protocol(
-        &self,
-        protocol: Self::Protocol,
-    ) -> Result<(), crate::sending::TrySendError<Self::Protocol>>;
+    ) -> impl Future<Output = Result<(), Closed<Self::Protocol>>> + Send;
 
     fn send_protocol_blocking(
         &self,
         protocol: Self::Protocol,
-    ) -> Result<(), SendError<Self::Protocol>> {
+    ) -> Result<(), Closed<Self::Protocol>> {
         futures::executor::block_on(Self::send_protocol(self, protocol))
     }
 }
 
-impl<M: Send, T> SendsMessage<M> for T
+/// Send a message, and return an error if there is no space
+pub trait TrySendProtocol {
+    type Protocol;
+    fn try_send_protocol(
+        &self,
+        protocol: Self::Protocol,
+    ) -> Result<(), TrySendError<Self::Protocol>>;
+}
+
+/// Send a message, that always has space available
+pub trait SendProtocolNow {
+    type Protocol;
+    fn send_protocol_now(&self, protocol: Self::Protocol) -> Result<(), Closed<Self::Protocol>>;
+}
+
+impl<M: Send, T> SendMessage<M> for T
 where
-    T: SendsProtocol,
+    T: SendProtocol + Send + Sync,
     T::Protocol: ProtocolFor<M>,
 {
-    async fn send_msg(&self, msg: M) -> Result<(), SendError<M>> {
+    async fn send_msg(&self, msg: M) -> Result<(), Closed<M>> {
         self.send_protocol(T::Protocol::from_msg(msg))
             .await
-            .map_err(|SendError(protocol)| SendError(protocol.try_into_msg().unwrap_silent()))
+            .map_err(|Closed(protocol)| Closed(protocol.try_into_msg().unwrap_silent()))
     }
 
+    fn send_msg_blocking(&self, msg: M) -> Result<(), Closed<M>> {
+        self.send_protocol_blocking(T::Protocol::from_msg(msg))
+            .map_err(|Closed(protocol)| Closed(protocol.try_into_msg().unwrap_silent()))
+    }
+}
+
+impl<M: Send, T> TrySendMessage<M> for T
+where
+    T: TrySendProtocol + Send + Sync,
+    T::Protocol: ProtocolFor<M>,
+{
     fn try_send_msg(&self, msg: M) -> Result<(), crate::sending::TrySendError<M>> {
         self.try_send_protocol(T::Protocol::from_msg(msg))
             .map_err(|e| match e {
@@ -63,11 +86,6 @@ where
                     TrySendError::Full(protocol.try_into_msg().unwrap_silent())
                 }
             })
-    }
-
-    fn send_msg_blocking(&self, msg: M) -> Result<(), SendError<M>> {
-        self.send_protocol_blocking(T::Protocol::from_msg(msg))
-            .map_err(|SendError(protocol)| SendError(protocol.try_into_msg().unwrap_silent()))
     }
 }
 
@@ -81,9 +99,9 @@ pub trait SendsExt {
     fn send<M: Message>(
         &self,
         msg: impl Into<M::Input> + Send,
-    ) -> impl Future<Output = Result<M::Output, SendError<M::Input>>> + Send
+    ) -> impl Future<Output = Result<M::Output, Closed<M::Input>>> + Send
     where
-        Self: SendsMessage<M>,
+        Self: SendMessage<M>,
     {
         async {
             let (msg, output) = M::create(msg.into());
@@ -94,29 +112,29 @@ pub trait SendsExt {
         }
     }
 
-    fn try_send<M: Message>(
+    fn send_blocking<M: Message>(
         &self,
         msg: impl Into<M::Input>,
-    ) -> Result<M::Output, TrySendError<M::Input>>
+    ) -> Result<M::Output, Closed<M::Input>>
     where
-        Self: SendsMessage<M>,
+        Self: SendMessage<M>,
     {
         let (msg, output) = M::create(msg.into());
-        match self.try_send_msg(msg) {
+        match self.send_msg_blocking(msg) {
             Ok(()) => Ok(output),
             Err(e) => Err(e.cancel(output)),
         }
     }
 
-    fn send_blocking<M: Message>(
+    fn try_send<M: Message>(
         &self,
         msg: impl Into<M::Input>,
-    ) -> Result<M::Output, SendError<M::Input>>
+    ) -> Result<M::Output, TrySendError<M::Input>>
     where
-        Self: SendsMessage<M>,
+        Self: TrySendMessage<M>,
     {
         let (msg, output) = M::create(msg.into());
-        match self.send_msg_blocking(msg) {
+        match self.try_send_msg(msg) {
             Ok(()) => Ok(output),
             Err(e) => Err(e.cancel(output)),
         }
@@ -128,11 +146,11 @@ pub trait SendsExt {
     ) -> impl std::future::Future<
         Output = Result<
             <M::Output as ResultFuture>::Ok,
-            RequestError<SendError<M::Input>, <M::Output as ResultFuture>::Error>,
+            RequestError<Closed<M::Input>, <M::Output as ResultFuture>::Error>,
         >,
     > + Send
     where
-        Self: SendsMessage<M>,
+        Self: SendMessage<M>,
         M::Output: ResultFuture + Send + 'static,
     {
         async {
@@ -151,7 +169,7 @@ pub trait SendsExt {
         >,
     > + Send
     where
-        Self: SendsMessage<M>,
+        Self: TrySendMessage<M>,
         M::Output: ResultFuture + Send + 'static,
     {
         async {
@@ -165,10 +183,10 @@ pub trait SendsExt {
         msg: impl Into<M::Input> + Send + 'static,
     ) -> Result<
         <M::Output as ResultFuture>::Ok,
-        RequestError<SendError<M::Input>, <M::Output as ResultFuture>::Error>,
+        RequestError<Closed<M::Input>, <M::Output as ResultFuture>::Error>,
     >
     where
-        Self: SendsMessage<M>,
+        Self: SendMessage<M>,
         M::Output: ResultFuture + Send + 'static,
     {
         futures::executor::block_on(self.request(msg))
@@ -182,7 +200,7 @@ pub trait SendsExt {
         RequestError<TrySendError<M::Input>, <M::Output as ResultFuture>::Error>,
     >
     where
-        Self: SendsMessage<M>,
+        Self: TrySendMessage<M>,
         M::Output: ResultFuture + Send + 'static,
     {
         futures::executor::block_on(self.try_request(msg))
@@ -195,14 +213,14 @@ impl<T: ?Sized> SendsExt for T {}
 //-------------------------------------
 
 #[derive(Debug)]
-pub struct SendError<T>(pub T);
+pub struct Closed<T>(pub T);
 
-impl<T> SendError<T> {
-    fn cancel(self, output: T::Output) -> SendError<T::Input>
+impl<T> Closed<T> {
+    fn cancel(self, output: T::Output) -> Closed<T::Input>
     where
         T: Message,
     {
-        SendError(T::cancel(self.0, output))
+        Closed(T::cancel(self.0, output))
     }
 
     pub fn into_msg(self) -> T {
