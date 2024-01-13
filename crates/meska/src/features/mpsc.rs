@@ -14,35 +14,45 @@ impl<P> Sender<P> {
         self.sender
     }
 
+    pub fn inner_mut(&mut self) -> &mut mpsc::Sender<P> {
+        &mut self.sender
+    }
+
     pub fn from_inner(sender: mpsc::Sender<P>) -> Self {
         Self { sender }
     }
 }
 
-impl<P> SendProtocol for Sender<P>
-where
-    P: Send,
-{
+impl<P: Send> SendProtocol for Sender<P> {
     type Protocol = P;
+    type Error = mpsc::error::SendError<()>;
 
     async fn send_protocol(
         &self,
         protocol: Self::Protocol,
-    ) -> Result<(), Closed<Self::Protocol>> {
-        self.sender.send(protocol).await.map_err(|e| Closed(e.0))
+    ) -> Result<(), SendError<Self::Protocol, Self::Error>> {
+        self.sender
+            .send(protocol)
+            .await
+            .map_err(|e| SendError::new(e.0, mpsc::error::SendError(())))
     }
 }
 
-impl<P> TrySendProtocol for Sender<P> {
+impl<P> SendProtocolNow for Sender<P> {
     type Protocol = P;
+    type Error = mpsc::error::TrySendError<()>;
 
-    fn try_send_protocol(
+    fn send_protocol_now(
         &self,
         protocol: Self::Protocol,
-    ) -> Result<(), TrySendError<Self::Protocol>> {
+    ) -> Result<(), SendError<Self::Protocol, Self::Error>> {
         self.sender.try_send(protocol).map_err(|e| match e {
-            mpsc::error::TrySendError::Closed(protocol) => TrySendError::Closed(protocol),
-            mpsc::error::TrySendError::Full(protocol) => TrySendError::Full(protocol),
+            mpsc::error::TrySendError::Closed(protocol) => {
+                SendError::new(protocol, mpsc::error::TrySendError::Closed(()))
+            }
+            mpsc::error::TrySendError::Full(protocol) => {
+                SendError::new(protocol, mpsc::error::TrySendError::Full(()))
+            }
         })
     }
 }
@@ -91,28 +101,32 @@ where
     P: Send + 'static,
 {
     type Protocol = P;
+    type Error = ();
 
     async fn send_protocol(
         &self,
         protocol: Self::Protocol,
-    ) -> Result<(), Closed<Self::Protocol>> {
-        self.sender.send(protocol).map_err(|e| Closed(e.0))
+    ) -> Result<(), SendError<Self::Protocol, Self::Error>> {
+        self.sender
+            .send(protocol)
+            .map_err(|e| SendError::new(e.0, ()))
     }
 }
 
-impl<P> TrySendProtocol for UnboundedSender<P>
+impl<P> SendProtocolNow for UnboundedSender<P>
 where
     P: Send + 'static,
 {
     type Protocol = P;
+    type Error = ();
 
-    fn try_send_protocol(
+    fn send_protocol_now(
         &self,
         protocol: Self::Protocol,
-    ) -> Result<(), TrySendError<Self::Protocol>> {
+    ) -> Result<(), SendError<Self::Protocol, Self::Error>> {
         self.sender
             .send(protocol)
-            .map_err(|e| TrySendError::Closed(e.0))
+            .map_err(|e| SendError::new(e.0, ()))
     }
 }
 

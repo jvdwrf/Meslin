@@ -1,5 +1,5 @@
-use tokio::sync::broadcast;
 use crate::*;
+use tokio::sync::broadcast;
 
 pub struct Sender<P> {
     sender: broadcast::Sender<P>,
@@ -8,6 +8,10 @@ pub struct Sender<P> {
 impl<P> Sender<P> {
     pub fn inner(&self) -> &broadcast::Sender<P> {
         &self.sender
+    }
+
+    pub fn inner_mut(&mut self) -> &mut broadcast::Sender<P> {
+        &mut self.sender
     }
 
     pub fn into_inner(self) -> broadcast::Sender<P> {
@@ -19,43 +23,16 @@ impl<P> Sender<P> {
     }
 }
 
-impl<P> SendProtocol for Sender<P>
-where
-    P: Send,
-{
+impl<P> SendProtocolNow for Sender<P> {
     type Protocol = P;
+    type Error = broadcast::error::SendError<()>;
 
-    async fn send_protocol(
-        &self,
-        protocol: Self::Protocol,
-    ) -> Result<(), Closed<Self::Protocol>> {
+    fn send_protocol_now(&self, protocol: Self::Protocol) -> Result<(), SendError<P, Self::Error>> {
         match self.sender.send(protocol) {
             Ok(_amount) => Ok(()),
-            Err(broadcast::error::SendError(protocol)) => Err(Closed(protocol)),
-        }
-    }
-
-    fn send_protocol_blocking(
-        &self,
-        protocol: Self::Protocol,
-    ) -> Result<(), Closed<Self::Protocol>> {
-        match self.sender.send(protocol) {
-            Ok(_amount) => Ok(()),
-            Err(broadcast::error::SendError(protocol)) => Err(Closed(protocol)),
-        }
-    }
-}
-
-impl<P> TrySendProtocol for Sender<P> {
-    type Protocol = P;
-
-    fn try_send_protocol(
-        &self,
-        protocol: Self::Protocol,
-    ) -> Result<(), crate::sending::TrySendError<Self::Protocol>> {
-        match self.sender.send(protocol) {
-            Ok(_amount) => Ok(()),
-            Err(broadcast::error::SendError(protocol)) => Err(TrySendError::Closed(protocol)),
+            Err(broadcast::error::SendError(protocol)) => {
+                Err(SendError::new(protocol, broadcast::error::SendError(())))
+            }
         }
     }
 }
@@ -65,6 +42,14 @@ impl<P> Clone for Sender<P> {
         Self {
             sender: self.sender.clone(),
         }
+    }
+}
+
+impl<P> std::fmt::Debug for Sender<P> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Sender")
+            .field("sender", &self.sender)
+            .finish()
     }
 }
 
