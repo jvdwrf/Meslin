@@ -25,20 +25,29 @@ impl<P> Sender<P> {
     }
 }
 
-impl<P> SendExt for Sender<P> {}
+impl<P> SendWith for Sender<P> {}
 
-impl<P: Clone> SendProtocolNow for Sender<P> {
+impl<P: Clone + Send + Sync> SendProtocol for Sender<P> {
     type Protocol = P;
-    type Error = watch::error::SendError<()>;
+    type SendError = Self::SendNowError;
+    type SendNowError = watch::error::SendError<()>;
 
     fn send_protocol_now_with(
         &self,
         protocol: Self::Protocol,
         _with: (),
-    ) -> Result<(), Error<(P, ()), Self::Error>> {
+    ) -> Result<(), Error<(P, ()), Self::SendNowError>> {
         self.sender
             .send(protocol)
             .map_err(|e| Error::new((e.0, ()), watch::error::SendError(())))
+    }
+
+    async fn send_protocol_with(
+        &self,
+        protocol: Self::Protocol,
+        with: (),
+    ) -> Result<(), Error<(Self::Protocol, ()), Self::SendError>> {
+        self.send_protocol_now_with(protocol, with)
     }
 }
 

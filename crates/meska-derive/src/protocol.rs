@@ -37,7 +37,7 @@ pub fn derive_protocol(input: DeriveInput) -> syn::Result<TokenStream> {
 
     Ok(quote! {
         #(
-            impl #impl_generics ::meska::ProtocolFor<#variant_types> for #name #ty_generics #where_clause {
+            impl #impl_generics ::meska::Accept<#variant_types> for #name #ty_generics #where_clause {
                 fn from_msg(msg: #variant_types) -> Self {
                     Self::#variant_idents(msg)
                 }

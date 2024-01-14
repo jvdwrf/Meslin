@@ -2,6 +2,7 @@ use crate::*;
 use async_priority_channel as prio;
 use std::fmt::Debug;
 
+/// Wrapper around [`async_priority_channel::Sender`].
 pub struct Sender<P, O: Ord> {
     sender: prio::Sender<P, O>,
 }
@@ -24,33 +25,49 @@ impl<P, O: Ord> Sender<P, O> {
     }
 }
 
-impl<P, O: Ord> SendExt for Sender<P, O> {}
+impl<P, O: Ord> IsSender<O> for Sender<P, O> {
+    fn is_closed(&self) -> bool {
+        self.sender.is_closed()
+    }
+
+    fn capacity(&self) -> Option<usize> {
+        self.sender.capacity().map(|c| c.try_into().unwrap())
+    }
+
+    fn len(&self) -> usize {
+        self.sender.len().try_into().unwrap()
+    }
+
+    fn receiver_count(&self) -> usize {
+        self.sender.receiver_count()
+    }
+
+    fn sender_count(&self) -> usize {
+        self.sender.sender_count()
+    }
+}
 
 impl<P: Send, O: Ord + Send> SendProtocol<O> for Sender<P, O> {
     type Protocol = P;
-    type Error = prio::SendError<()>;
+    type SendError = prio::SendError<()>;
+    type SendNowError = prio::TrySendError<()>;
 
     async fn send_protocol_with(
         &self,
         protocol: Self::Protocol,
         with: O,
-    ) -> Result<(), Error<(Self::Protocol, O), Self::Error>> {
+    ) -> Result<(), Error<(Self::Protocol, O), Self::SendError>> {
         self.sender
             .send(protocol, with)
             .await
             .map_err(|e| Error::new(e.0, prio::SendError(())))
     }
-}
-
-impl<P, O: Ord> SendProtocolNow<O> for Sender<P, O> {
-    type Protocol = P;
-    type Error = prio::TrySendError<()>;
 
     fn send_protocol_now_with(
         &self,
         protocol: Self::Protocol,
         with: O,
-    ) -> Result<(), Error<(Self::Protocol, O), Self::Error>> {
+    ) -> Result<(), Error<(Self::Protocol, O), Self::SendNowError>> {
         self.sender.try_send(protocol, with).map_err(|e| match e {
             prio::TrySendError::Full(protocol) => {
                 Error::new(protocol, prio::TrySendError::Full(()))
@@ -70,10 +87,12 @@ impl<P: Debug, O: Ord + Debug> Debug for Sender<P, O> {
     }
 }
 
-pub fn channel<P, O: Ord>(cap: Option<u64>) -> (Sender<P, O>, prio::Receiver<P, O>) {
-    let (sender, receiver) = match cap {
-        Some(size) => prio::bounded(size),
-        None => prio::unbounded(),
-    };
+pub fn bounded<P, O: Ord>(size: usize) -> (Sender<P, O>, prio::Receiver<P, O>) {
+    let (sender, receiver) = prio::bounded(size.try_into().unwrap());
+    (Sender { sender }, receiver)
+}
+
+pub fn unbounded<P, O: Ord>() -> (Sender<P, O>, prio::Receiver<P, O>) {
+    let (sender, receiver) = prio::unbounded();
     (Sender { sender }, receiver)
 }

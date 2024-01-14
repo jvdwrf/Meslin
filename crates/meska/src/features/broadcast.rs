@@ -23,24 +23,52 @@ impl<P> Sender<P> {
     }
 }
 
-impl<P> SendExt for Sender<P> {}
+impl<P> IsSender for Sender<P> {
+    fn is_closed(&self) -> bool {
+        false
+    }
 
-impl<P> SendProtocolNow for Sender<P> {
+    fn capacity(&self) -> Option<usize> {
+        None
+    }
+
+    fn len(&self) -> usize {
+        self.sender.len()
+    }
+
+    fn receiver_count(&self) -> usize {
+        self.sender.receiver_count()
+    }
+
+    fn sender_count(&self) -> usize {
+        1
+    }
+}
+
+impl<P: Send> SendProtocol for Sender<P> {
     type Protocol = P;
-    type Error = broadcast::error::SendError<()>;
+    type SendNowError = broadcast::error::SendError<()>;
+    type SendError = Self::SendNowError;
 
     fn send_protocol_now_with(
         &self,
         protocol: Self::Protocol,
         _with: (),
-    ) -> Result<(), Error<(P, ()), Self::Error>> {
+    ) -> Result<(), Error<(P, ()), Self::SendNowError>> {
         match self.sender.send(protocol) {
             Ok(_amount) => Ok(()),
-            Err(broadcast::error::SendError(protocol)) => Err(Error::new(
-                (protocol, ()),
-                broadcast::error::SendError(()),
-            )),
+            Err(broadcast::error::SendError(protocol)) => {
+                Err(Error::new((protocol, ()), broadcast::error::SendError(())))
+            }
         }
+    }
+
+    async fn send_protocol_with(
+        &self,
+        protocol: Self::Protocol,
+        _with: (),
+    ) -> Result<(), Error<(Self::Protocol, ()), Self::SendError>> {
+        self.send_protocol_now_with(protocol, ())
     }
 }
 

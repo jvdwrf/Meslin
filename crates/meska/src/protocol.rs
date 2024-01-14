@@ -7,7 +7,7 @@ use std::any::TypeId;
 /// It should not be implemented for `Self`, but only for the variants.
 ///
 /// This can be derived on an enum using [`macro@Protocol`](crate)
-pub trait ProtocolFor<M>: Sized {
+pub trait Accept<M>: Sized {
     /// Convert a message into the protocol.
     fn from_msg(msg: M) -> Self;
 

@@ -4,13 +4,16 @@ mod features;
 mod message;
 mod protocol;
 mod sending;
+mod dynamic;
 
 pub use features::*;
 pub use message::*;
 pub use protocol::*;
 pub use sending::*;
+pub use dynamic::*;
 
 type AnyBox = Box<dyn std::any::Any + Send + 'static>;
+type BoxError = Box<dyn std::error::Error + Send>;
 
 trait ResultExt<T, E> {
     fn unwrap_silent(self) -> T;

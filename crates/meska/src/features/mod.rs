@@ -10,8 +10,8 @@ pub mod broadcast;
 #[cfg(feature = "watch")]
 pub mod watch;
 
-#[cfg(feature = "mpsc")]
-pub mod mpsc;
+#[cfg(feature = "mpmc")]
+pub mod mpmc;
 
 #[cfg(feature = "priority")]
 pub mod priority;
