@@ -2,7 +2,7 @@
 pub mod request;
 
 #[cfg(feature = "derive")]
-pub use meska_derive::*;
+pub use meslin_derive::*;
 
 #[cfg(feature = "broadcast")]
 pub mod broadcast;

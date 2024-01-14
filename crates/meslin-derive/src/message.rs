@@ -7,7 +7,7 @@ pub fn derive_message(input: DeriveInput) -> syn::Result<TokenStream> {
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     Ok(quote! {
-        impl #impl_generics ::meska::Message for #name #ty_generics #where_clause {
+        impl #impl_generics ::meslin::Message for #name #ty_generics #where_clause {
             type Input = Self;
             type Output = ();
 

@@ -1,5 +1,5 @@
 [package]
-name = "meska"
+name = "meslin"
 version = "0.1.0"
 edition = "2021"
 
@@ -10,13 +10,13 @@ futures = { version = "0.3", features = ["executor"] }
 tokio = { version = "1", features = ["sync"], optional = true }
 async-priority-channel = { version = "0.2", optional = true }
 flume = { version = "0.11", optional = true }
-meska-derive = { version = "0.1", path = "../meska-derive", optional = true }
+meslin-derive = { version = "0.1", path = "../meslin-derive", optional = true }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }
 
 [features]
-derive = ["dep:meska-derive"]
+derive = ["dep:meslin-derive"]
 mpmc = ["flume"]
 request = ["dep:tokio"]
 broadcast = ["dep:tokio"]
