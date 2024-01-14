@@ -5,7 +5,7 @@ use std::{num::*, sync::Arc};
 /// It defines two types: `Input` and `Output`.
 /// - [`Message::Input`] is the type that is converted into the message.
 /// - [`Message::Output`] is the type that is returned when the message is sent.
-pub trait Message: Send + 'static + Sized {
+pub trait Message: Sized {
     /// The type that is converted into the message.
     type Input;
 
