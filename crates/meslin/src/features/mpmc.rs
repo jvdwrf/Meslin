@@ -47,41 +47,37 @@ impl<P> IsSender for Sender<P> {
 
 impl<P: Send> SendProtocol for Sender<P> {
     type Protocol = P;
-    type SendError = flume::SendError<()>;
-    type SendNowError = flume::TrySendError<()>;
 
     async fn send_protocol_with(
         &self,
         protocol: Self::Protocol,
         _with: (),
-    ) -> Result<(), Error<(Self::Protocol, ()), Self::SendError>> {
+    ) -> Result<(), SendError<(Self::Protocol, ())>> {
         self.sender
             .send_async(protocol)
             .await
-            .map_err(|e| Error::new((e.0, ()), flume::SendError(())))
+            .map_err(|e| SendError((e.0, ())))
     }
 
     fn send_protocol_blocking_with(
         &self,
         protocol: Self::Protocol,
         _with: (),
-    ) -> Result<(), Error<(Self::Protocol, ()), Self::SendError>> {
-        self.sender
-            .send(protocol)
-            .map_err(|e| Error::new((e.0, ()), flume::SendError(())))
+    ) -> Result<(), SendError<(Self::Protocol, ())>> {
+        self.sender.send(protocol).map_err(|e| SendError((e.0, ())))
     }
 
     fn send_protocol_now_with(
         &self,
         protocol: Self::Protocol,
         _with: (),
-    ) -> Result<(), Error<(Self::Protocol, ()), Self::SendNowError>> {
+    ) -> Result<(), SendNowError<(Self::Protocol, ())>> {
         self.sender.try_send(protocol).map_err(|e| match e {
             flume::TrySendError::Disconnected(protocol) => {
-                Error::new((protocol, ()), flume::TrySendError::Disconnected(()))
+                SendNowError::Closed((protocol, ()))
             }
             flume::TrySendError::Full(protocol) => {
-                Error::new((protocol, ()), flume::TrySendError::Full(()))
+                SendNowError::Full((protocol, ()))
             }
         })
     }

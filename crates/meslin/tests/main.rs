@@ -1,6 +1,5 @@
 use meslin::{request::Request, *};
 
-
 /// Example protocol that can be used
 #[derive(Debug, Protocol)]
 pub enum MyProtocol {

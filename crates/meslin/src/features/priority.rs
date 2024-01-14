@@ -1,6 +1,6 @@
 use crate::*;
 use async_priority_channel as prio;
-use std::fmt::Debug;
+use std::{f32::consts::E, fmt::Debug};
 
 /// Wrapper around [`async_priority_channel::Sender`].
 pub struct Sender<P, O: Ord> {
@@ -49,32 +49,26 @@ impl<P, O: Ord> IsSender<O> for Sender<P, O> {
 
 impl<P: Send, O: Ord + Send> SendProtocol<O> for Sender<P, O> {
     type Protocol = P;
-    type SendError = prio::SendError<()>;
-    type SendNowError = prio::TrySendError<()>;
 
     async fn send_protocol_with(
         &self,
         protocol: Self::Protocol,
         with: O,
-    ) -> Result<(), Error<(Self::Protocol, O), Self::SendError>> {
+    ) -> Result<(), SendError<(Self::Protocol, O)>> {
         self.sender
             .send(protocol, with)
             .await
-            .map_err(|e| Error::new(e.0, prio::SendError(())))
+            .map_err(|e| SendError(e.0))
     }
 
     fn send_protocol_now_with(
         &self,
         protocol: Self::Protocol,
         with: O,
-    ) -> Result<(), Error<(Self::Protocol, O), Self::SendNowError>> {
+    ) -> Result<(), SendNowError<(Self::Protocol, O)>> {
         self.sender.try_send(protocol, with).map_err(|e| match e {
-            prio::TrySendError::Full(protocol) => {
-                Error::new(protocol, prio::TrySendError::Full(()))
-            }
-            prio::TrySendError::Closed(protocol) => {
-                Error::new(protocol, prio::TrySendError::Closed(()))
-            }
+            prio::TrySendError::Full(e) => SendNowError::Full(e),
+            prio::TrySendError::Closed(e) => SendNowError::Closed(e),
         })
     }
 }

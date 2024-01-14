@@ -8,28 +8,26 @@ use std::future::Future;
 /// Send a message, and wait for space
 pub trait SendProtocol<W = ()> {
     type Protocol;
-    type SendError;
-    type SendNowError;
 
     fn send_protocol_with(
         &self,
         protocol: Self::Protocol,
         with: W,
-    ) -> impl Future<Output = Result<(), Error<(Self::Protocol, W), Self::SendError>>> + Send;
+    ) -> impl Future<Output = Result<(), SendError<(Self::Protocol, W)>>> + Send;
 
     fn send_protocol_blocking_with(
         &self,
         protocol: Self::Protocol,
         with: W,
-    ) -> Result<(), Error<(Self::Protocol, W), Self::SendError>> {
-        futures::executor::block_on(Self::send_protocol_with(self, protocol, with))
+    ) -> Result<(), SendError<(Self::Protocol, W)>> {
+        futures::executor::block_on(self.send_protocol_with(protocol, with))
     }
 
     fn send_protocol_now_with(
         &self,
         protocol: Self::Protocol,
         with: W,
-    ) -> Result<(), Error<(Self::Protocol, W), Self::SendNowError>>;
+    ) -> Result<(), SendNowError<(Self::Protocol, W)>>;
 }
 
 //-------------------------------------
@@ -40,24 +38,17 @@ pub trait SendProtocol<W = ()> {
 ///
 /// Usage is more convenient through [`Sends`] instead of using these methods directly.
 pub trait SendMessage<M, W = ()>: Send + Sync {
-    type SendError;
-    type SendNowError;
-
     fn send_msg_with(
         &self,
         msg: M,
         with: W,
-    ) -> impl Future<Output = Result<(), Error<(M, W), Self::SendError>>> + Send;
+    ) -> impl Future<Output = Result<(), SendError<(M, W)>>> + Send;
 
-    fn send_msg_blocking_with(
-        &self,
-        msg: M,
-        with: W,
-    ) -> Result<(), Error<(M, W), Self::SendError>> {
+    fn send_msg_blocking_with(&self, msg: M, with: W) -> Result<(), SendError<(M, W)>> {
         futures::executor::block_on(Self::send_msg_with(self, msg, with))
     }
 
-    fn send_msg_now_with(&self, msg: M, with: W) -> Result<(), Error<(M, W), Self::SendNowError>>;
+    fn send_msg_now_with(&self, msg: M, with: W) -> Result<(), SendNowError<(M, W)>>;
 }
 
 impl<M, W, T> SendMessage<M, W> for T
@@ -67,27 +58,20 @@ where
     M: Send,
     W: Send,
 {
-    type SendError = <T as SendProtocol<W>>::SendError;
-    type SendNowError = <T as SendProtocol<W>>::SendNowError;
-
-    async fn send_msg_with(&self, msg: M, with: W) -> Result<(), Error<(M, W), Self::SendError>> {
+    async fn send_msg_with(&self, msg: M, with: W) -> Result<(), SendError<(M, W)>> {
         self.send_protocol_with(T::Protocol::from_msg(msg), with)
             .await
             .map_err(|e| e.map_into_msg_unwrap())
     }
 
-    fn send_msg_blocking_with(
-        &self,
-        msg: M,
-        with: W,
-    ) -> Result<(), Error<(M, W), Self::SendError>> {
+    fn send_msg_blocking_with(&self, msg: M, with: W) -> Result<(), SendError<(M, W)>> {
         self.send_protocol_blocking_with(T::Protocol::from_msg(msg), with)
             .map_err(|e| e.map_into_msg_unwrap())
     }
 
-    fn send_msg_now_with(&self, msg: M, with: W) -> Result<(), Error<(M, W), Self::SendNowError>> {
+    fn send_msg_now_with(&self, msg: M, with: W) -> Result<(), SendNowError<(M, W)>> {
         self.send_protocol_now_with(T::Protocol::from_msg(msg), with)
-            .map_err(|e| e.map_into_msg_unwrap())
+            .map_err(|e| e.map_into_msg_first_unwrap())
     }
 }
 
@@ -115,7 +99,7 @@ pub trait SendWith<W = ()> {
         &self,
         msg: impl Into<M::Input> + Send,
         with: W,
-    ) -> impl Future<Output = Result<M::Output, Error<(M::Input, W), Self::SendError>>> + Send
+    ) -> impl Future<Output = Result<M::Output, SendError<(M::Input, W)>>> + Send
     where
         Self: SendMessage<M, W>,
     {
@@ -133,7 +117,7 @@ pub trait SendWith<W = ()> {
         &self,
         msg: impl Into<M::Input>,
         with: W,
-    ) -> Result<M::Output, Error<(M::Input, W), Self::SendError>>
+    ) -> Result<M::Output, SendError<(M::Input, W)>>
     where
         Self: SendMessage<M, W>,
     {
@@ -148,7 +132,7 @@ pub trait SendWith<W = ()> {
         &self,
         msg: impl Into<M::Input>,
         with: W,
-    ) -> Result<M::Output, Error<(M::Input, W), Self::SendNowError>>
+    ) -> Result<M::Output, SendNowError<(M::Input, W)>>
     where
         Self: SendMessage<M, W>,
     {
@@ -166,7 +150,7 @@ pub trait SendWith<W = ()> {
     ) -> impl std::future::Future<
         Output = Result<
             <M::Output as ResultFuture>::Ok,
-            RequestError<Error<(M::Input, W), Self::SendError>, <M::Output as ResultFuture>::Error>,
+            RequestError<(M::Input, W), <M::Output as ResultFuture>::Error>,
         >,
     > + Send
     where
@@ -175,8 +159,8 @@ pub trait SendWith<W = ()> {
     {
         let fut = self.send_with(msg, with);
         async {
-            let rx = fut.await.map_err(RequestError::Send)?;
-            rx.await.map_err(RequestError::Recv)
+            let rx = fut.await?;
+            rx.await.map_err(RequestError::NoReply)
         }
     }
 }
@@ -189,7 +173,7 @@ pub trait SendExt: SendWith {
     fn send_protocol(
         &self,
         protocol: Self::Protocol,
-    ) -> impl Future<Output = Result<(), Error<Self::Protocol, Self::SendError>>> + Send
+    ) -> impl Future<Output = Result<(), SendError<Self::Protocol>>> + Send
     where
         Self: SendProtocol,
     {
@@ -200,7 +184,7 @@ pub trait SendExt: SendWith {
     fn send_protocol_blocking(
         &self,
         protocol: Self::Protocol,
-    ) -> Result<(), Error<Self::Protocol, Self::SendError>>
+    ) -> Result<(), SendError<Self::Protocol>>
     where
         Self: SendProtocol,
     {
@@ -211,18 +195,15 @@ pub trait SendExt: SendWith {
     fn send_protocol_now(
         &self,
         protocol: Self::Protocol,
-    ) -> Result<(), Error<Self::Protocol, Self::SendNowError>>
+    ) -> Result<(), SendNowError<Self::Protocol>>
     where
         Self: SendProtocol,
     {
         self.send_protocol_now_with(protocol, ())
-            .map_err(|e| e.map_first())
+            .map_err(|e| e.map_into_first())
     }
 
-    fn send_msg<M: Message>(
-        &self,
-        msg: M,
-    ) -> impl Future<Output = Result<(), Error<M, Self::SendError>>> + Send
+    fn send_msg<M: Message>(&self, msg: M) -> impl Future<Output = Result<(), SendError<M>>> + Send
     where
         Self: SendMessage<M>,
     {
@@ -230,7 +211,7 @@ pub trait SendExt: SendWith {
         async { fut.await.map_err(|e| e.map_first()) }
     }
 
-    fn send_msg_blocking<M: Message>(&self, msg: M) -> Result<(), Error<M, Self::SendError>>
+    fn send_msg_blocking<M: Message>(&self, msg: M) -> Result<(), SendError<M>>
     where
         Self: SendMessage<M>,
     {
@@ -238,17 +219,18 @@ pub trait SendExt: SendWith {
             .map_err(|e| e.map_first())
     }
 
-    fn send_msg_now<M: Message>(&self, msg: M) -> Result<(), Error<M, Self::SendNowError>>
+    fn send_msg_now<M: Message>(&self, msg: M) -> Result<(), SendNowError<M>>
     where
         Self: SendMessage<M>,
     {
-        self.send_msg_now_with(msg, ()).map_err(|e| e.map_first())
+        self.send_msg_now_with(msg, ())
+            .map_err(|e| e.map_into_first())
     }
 
     fn send<M: Message>(
         &self,
         msg: impl Into<M::Input> + Send,
-    ) -> impl Future<Output = Result<M::Output, Error<M::Input, Self::SendError>>> + Send
+    ) -> impl Future<Output = Result<M::Output, SendError<M::Input>>> + Send
     where
         Self: SendMessage<M>,
     {
@@ -258,7 +240,7 @@ pub trait SendExt: SendWith {
     fn send_blocking<M: Message>(
         &self,
         msg: impl Into<M::Input>,
-    ) -> Result<M::Output, Error<M::Input, Self::SendError>>
+    ) -> Result<M::Output, SendError<M::Input>>
     where
         Self: SendMessage<M>,
     {
@@ -268,11 +250,11 @@ pub trait SendExt: SendWith {
     fn send_now<M: Message>(
         &self,
         msg: impl Into<M::Input>,
-    ) -> Result<M::Output, Error<M::Input, Self::SendNowError>>
+    ) -> Result<M::Output, SendNowError<M::Input>>
     where
         Self: SendMessage<M>,
     {
-        self.send_now_with(msg, ()).map_err(|e| e.map_first())
+        self.send_now_with(msg, ()).map_err(|e| e.map_into_first())
     }
 
     fn request<M: Message>(
@@ -281,7 +263,7 @@ pub trait SendExt: SendWith {
     ) -> impl std::future::Future<
         Output = Result<
             <M::Output as ResultFuture>::Ok,
-            RequestError<Error<M::Input, Self::SendError>, <M::Output as ResultFuture>::Error>,
+            RequestError<M::Input, <M::Output as ResultFuture>::Error>,
         >,
     > + Send
     where
@@ -290,8 +272,8 @@ pub trait SendExt: SendWith {
     {
         async {
             self.request_with(msg, ()).await.map_err(|e| match e {
-                RequestError::Send(e) => RequestError::Send(e.map_first()),
-                RequestError::Recv(e) => RequestError::Recv(e),
+                RequestError::Full(e) => RequestError::Full(e.0),
+                RequestError::NoReply(e) => RequestError::NoReply(e),
             })
         }
     }
@@ -301,7 +283,7 @@ pub trait SendExt: SendWith {
         msg: impl Into<M::Input> + Send + 'static,
     ) -> Result<
         <M::Output as ResultFuture>::Ok,
-        RequestError<Error<M::Input, Self::SendError>, <M::Output as ResultFuture>::Error>,
+        RequestError<M::Input, <M::Output as ResultFuture>::Error>,
     >
     where
         Self: SendMessage<M>,
@@ -316,67 +298,89 @@ impl<T> SendExt for T where T: SendWith {}
 // Errors
 //-------------------------------------
 
-#[derive(Debug)]
-pub struct Error<T, E> {
-    msg: T,
-    reason: E,
-}
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+pub struct SendError<T>(pub T);
 
-impl<T, E> Error<T, E> {
-    pub fn new(msg: T, reason: E) -> Self {
-        Self { msg, reason }
-    }
-
-    pub fn reason(&self) -> &E {
-        &self.reason
-    }
-
-    pub fn into_reason(self) -> E {
-        self.reason
-    }
-
-    pub fn msg(&self) -> &T {
-        &self.msg
-    }
-
-    pub fn into_msg(self) -> T {
-        self.msg
-    }
-
-    pub fn into_inner(self) -> (T, E) {
-        (self.msg, self.reason)
+impl<T> SendError<T> {
+    pub fn into_inner(self) -> T {
+        self.0
     }
 }
 
-impl<T, W, E> Error<(T, W), E> {
-    fn map_into_msg_unwrap<M>(self) -> Error<(M, W), E>
+impl<T, W> SendError<(T, W)> {
+    fn map_first(self) -> SendError<T> {
+        SendError(self.0 .0)
+    }
+
+    fn map_into_msg_unwrap<M2>(self) -> SendError<(M2, W)>
     where
-        T: Accept<M>,
+        T: Accept<M2>,
     {
-        Error::new(
-            (self.msg.0.try_into_msg().unwrap_silent(), self.msg.1),
-            self.reason,
-        )
+        SendError((self.0 .0.try_into_msg().unwrap_silent(), self.0 .1))
     }
 
-    fn map_first(self) -> Error<T, E> {
-        Error::new(self.msg.0, self.reason)
-    }
-
-    fn map_cancel_first(self, output: T::Output) -> Error<(T::Input, W), E>
+    fn map_cancel_first(self, output: T::Output) -> SendError<(T::Input, W)>
     where
         T: Message,
     {
-        Error::new((T::cancel(self.msg.0, output), self.msg.1), self.reason)
+        SendError((self.0 .0.cancel(output), self.0 .1))
+    }
+}
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+pub enum SendNowError<T> {
+    Closed(T),
+    Full(T),
+}
+
+impl<T> SendNowError<T> {
+    pub fn into_inner(self) -> T {
+        match self {
+            Self::Closed(t) => t,
+            Self::Full(t) => t,
+        }
+    }
+}
+
+impl<T, W> SendNowError<(T, W)> {
+    fn map_into_first(self) -> SendNowError<T> {
+        match self {
+            Self::Closed(t) => SendNowError::Closed(t.0),
+            Self::Full(t) => SendNowError::Full(t.0),
+        }
+    }
+
+    fn map_cancel_first(self, output: T::Output) -> SendNowError<(T::Input, W)>
+    where
+        T: Message,
+    {
+        match self {
+            Self::Closed(t) => SendNowError::Closed((t.0.cancel(output), t.1)),
+            Self::Full(t) => SendNowError::Full((t.0.cancel(output), t.1)),
+        }
+    }
+
+    fn map_into_msg_first_unwrap<M>(self) -> SendNowError<(M, W)>
+    where
+        T: Accept<M>,
+    {
+        match self {
+            Self::Closed(t) => SendNowError::Closed((t.0.try_into_msg().unwrap_silent(), t.1)),
+            Self::Full(t) => SendNowError::Full((t.0.try_into_msg().unwrap_silent(), t.1)),
+        }
     }
 }
 
 #[derive(Debug)]
-pub enum RequestError<E1, E2> {
-    /// Error while sending the message
-    Send(E1),
-    /// Error while receiving the response
-    Recv(E2),
+pub enum RequestError<M, E> {
+    Full(M),
+    NoReply(E),
+}
+
+impl<T, E> From<SendError<T>> for RequestError<T, E> {
+    fn from(e: SendError<T>) -> Self {
+        Self::Full(e.0)
+    }
 }
 
 //-------------------------------------

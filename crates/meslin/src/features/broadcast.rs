@@ -47,28 +47,27 @@ impl<P> IsSender for Sender<P> {
 
 impl<P: Send> SendProtocol for Sender<P> {
     type Protocol = P;
-    type SendNowError = broadcast::error::SendError<()>;
-    type SendError = Self::SendNowError;
 
     fn send_protocol_now_with(
         &self,
         protocol: Self::Protocol,
         _with: (),
-    ) -> Result<(), Error<(P, ()), Self::SendNowError>> {
-        match self.sender.send(protocol) {
-            Ok(_amount) => Ok(()),
-            Err(broadcast::error::SendError(protocol)) => {
-                Err(Error::new((protocol, ()), broadcast::error::SendError(())))
-            }
-        }
+    ) -> Result<(), SendNowError<(P, ())>> {
+        self.sender
+            .send(protocol)
+            .map(|_| ())
+            .map_err(|e| SendNowError::Closed((e.0, ())))
     }
 
     async fn send_protocol_with(
         &self,
         protocol: Self::Protocol,
         _with: (),
-    ) -> Result<(), Error<(Self::Protocol, ()), Self::SendError>> {
-        self.send_protocol_now_with(protocol, ())
+    ) -> Result<(), SendError<(Self::Protocol, ())>> {
+        self.sender
+            .send(protocol)
+            .map(|_| ())
+            .map_err(|e| SendError((e.0, ())))
     }
 }
 

@@ -29,25 +29,23 @@ impl<P> SendWith for Sender<P> {}
 
 impl<P: Clone + Send + Sync> SendProtocol for Sender<P> {
     type Protocol = P;
-    type SendError = Self::SendNowError;
-    type SendNowError = watch::error::SendError<()>;
 
     fn send_protocol_now_with(
         &self,
         protocol: Self::Protocol,
         _with: (),
-    ) -> Result<(), Error<(P, ()), Self::SendNowError>> {
+    ) -> Result<(), SendNowError<(P, ())>> {
         self.sender
             .send(protocol)
-            .map_err(|e| Error::new((e.0, ()), watch::error::SendError(())))
+            .map_err(|e| SendNowError::Closed((e.0, ())))
     }
 
     async fn send_protocol_with(
         &self,
         protocol: Self::Protocol,
-        with: (),
-    ) -> Result<(), Error<(Self::Protocol, ()), Self::SendError>> {
-        self.send_protocol_now_with(protocol, with)
+        _with: (),
+    ) -> Result<(), SendError<(Self::Protocol, ())>> {
+        self.sender.send(protocol).map_err(|e| SendError((e.0, ())))
     }
 }
 
