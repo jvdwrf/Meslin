@@ -6,7 +6,7 @@ use std::any::TypeId;
 /// Usually the protocol is an enum that implements [`ProtocolFor<M>`] for each variant.
 /// It should not be implemented for `Self`, but only for the variants.
 ///
-/// This can be derived on an enum using [`macro@Protocol`]
+/// This can be derived on an enum using [`macro@Protocol`](crate)
 pub trait ProtocolFor<M>: Sized {
     /// Convert a message into the protocol.
     fn from_msg(msg: M) -> Self;

@@ -23,6 +23,8 @@ impl<P> Sender<P> {
     }
 }
 
+impl<P> SendExt for Sender<P> {}
+
 impl<P> SendProtocolNow for Sender<P> {
     type Protocol = P;
     type Error = broadcast::error::SendError<()>;

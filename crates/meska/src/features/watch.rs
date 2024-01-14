@@ -25,6 +25,8 @@ impl<P> Sender<P> {
     }
 }
 
+impl<P> SendExt for Sender<P> {}
+
 impl<P: Clone> SendProtocolNow for Sender<P> {
     type Protocol = P;
     type Error = watch::error::SendError<()>;

@@ -23,6 +23,8 @@ impl<P> Sender<P> {
     }
 }
 
+impl<P> SendExt for Sender<P> {}
+
 impl<P: Send> SendProtocol for Sender<P> {
     type Protocol = P;
     type Error = mpsc::error::SendError<()>;
@@ -34,6 +36,15 @@ impl<P: Send> SendProtocol for Sender<P> {
         self.sender
             .send(protocol)
             .await
+            .map_err(|e| SendError::new(e.0, mpsc::error::SendError(())))
+    }
+
+    fn send_protocol_blocking(
+        &self,
+        protocol: Self::Protocol,
+    ) -> Result<(), SendError<Self::Protocol, Self::Error>> {
+        self.sender
+            .blocking_send(protocol)
             .map_err(|e| SendError::new(e.0, mpsc::error::SendError(())))
     }
 }

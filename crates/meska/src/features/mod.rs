@@ -12,3 +12,6 @@ pub mod watch;
 
 #[cfg(feature = "mpsc")]
 pub mod mpsc;
+
+#[cfg(feature = "priority")]
+pub mod priority;

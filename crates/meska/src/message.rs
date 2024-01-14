@@ -22,11 +22,11 @@ pub trait Message: Send + 'static + Sized {
 /// A simple wrapper for any type that does not implement [`Message`].
 /// This is useful for sending types that are not owned by the sender.
 ///
-/// [`Wrapper<T>`] implements [`Message`] for any type `T`.
+/// [`Msg<T>`] implements [`Message`] for any type `T`.
 #[derive(Debug, Clone, Copy)]
-pub struct Wrapper<T>(pub T);
+pub struct Msg<T>(pub T);
 
-impl<T: Send + 'static> Message for Wrapper<T> {
+impl<T: Send + 'static> Message for Msg<T> {
     type Input = T;
     type Output = ();
 

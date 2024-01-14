@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 futures = { version = "0.3", features = ["executor"] }
 tokio = { version = "1", features = ["sync"], optional = true }
+async-priority-channel = { version = "0.2", optional = true }
 meska-derive = { version = "0.1", path = "../meska-derive", optional = true }
 
 [dev-dependencies]
@@ -19,4 +20,5 @@ mpsc = ["dep:tokio"]
 request = ["dep:tokio"]
 broadcast = ["dep:tokio"]
 watch = ["dep:tokio"]
-default = ["mpsc", "request", "derive", "broadcast", "watch"]
+priority = ["dep:async-priority-channel"]
+default = ["mpsc", "request", "derive", "broadcast", "watch", "priority"]

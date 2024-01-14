@@ -1,35 +1,51 @@
 use crate::{message::Message, protocol::ProtocolFor, ResultExt};
 use std::future::Future;
 
-//-------------------------------------
-// SendsMessage
-//-------------------------------------
+// traits:
+// - SendMessage<M>
+// - SendMessageNow<M>
+// - SendMessageWith<M>
+// - SendMessageNowWith<M>
 
-/// This trait is implemented for all types that can send messages.
-///
-/// Usage is more convenient through [`Sends`] instead of using these methods directly.
-pub trait SendMessage<M>: Send + Sync {
-    type Error;
+// - SendProtocol
+// - SendProtocolNow
+// - SendProtocolWith
+// - SendProtocolNowWith
 
-    fn send_msg(
-        &self,
-        msg: M,
-    ) -> impl Future<Output = Result<(), SendError<M, Self::Error>>> + Send;
-
-    fn send_msg_blocking(&self, msg: M) -> Result<(), SendError<M, Self::Error>> {
-        futures::executor::block_on(Self::send_msg(self, msg))
-    }
-}
-
-pub trait SendMessageNow<M>: Send + Sync {
-    type Error;
-
-    fn send_msg_now(&self, msg: M) -> Result<(), SendError<M, Self::Error>>;
-}
+// - SendExt
 
 //-------------------------------------
 // SendsProtocol
 //-------------------------------------
+
+pub trait SendProtocol2<W = ()> {
+    type Protocol;
+    type Error;
+
+    fn send_protocol_with2(
+        &self,
+        protocol: Self::Protocol,
+        with: W,
+    ) -> impl Future<Output = Result<(), SendError<Self::Protocol, Self::Error>>> + Send;
+
+    fn send_protocol_blocking_with2(
+        &self,
+        protocol: Self::Protocol,
+        with: W,
+    ) -> Result<(), SendError<Self::Protocol, Self::Error>> {
+        futures::executor::block_on(self.send_protocol_with2(protocol, with))
+    }
+
+    fn send_protocol2(
+        &self,
+        protocol: Self::Protocol,
+    ) -> impl Future<Output = Result<(), SendError<Self::Protocol, Self::Error>>> + Send
+    where
+        W: Default,
+    {
+        self.send_protocol_with2(protocol, Default::default())
+    }
+}
 
 /// Send a message, and wait for space
 pub trait SendProtocol {
@@ -58,6 +74,32 @@ pub trait SendProtocolNow {
         &self,
         protocol: Self::Protocol,
     ) -> Result<(), SendError<Self::Protocol, Self::Error>>;
+}
+
+//-------------------------------------
+// SendsMessage
+//-------------------------------------
+
+/// This trait is implemented for all types that can send messages.
+///
+/// Usage is more convenient through [`Sends`] instead of using these methods directly.
+pub trait SendMessage<M>: Send + Sync {
+    type Error;
+
+    fn send_msg(
+        &self,
+        msg: M,
+    ) -> impl Future<Output = Result<(), SendError<M, Self::Error>>> + Send;
+
+    fn send_msg_blocking(&self, msg: M) -> Result<(), SendError<M, Self::Error>> {
+        futures::executor::block_on(Self::send_msg(self, msg))
+    }
+}
+
+pub trait SendMessageNow<M>: Send + Sync {
+    type Error;
+
+    fn send_msg_now(&self, msg: M) -> Result<(), SendError<M, Self::Error>>;
 }
 
 impl<M: Send, T> SendMessage<M> for T
@@ -107,7 +149,7 @@ where
 
 /// Automatically implemented for all types, providing convenience functions
 /// for the trait [`SendsMessage<M>`].
-pub trait SendsExt {
+pub trait SendExt {
     fn send<M: Message>(
         &self,
         msg: impl Into<M::Input> + Send,
@@ -185,7 +227,6 @@ pub trait SendsExt {
         futures::executor::block_on(self.request(msg))
     }
 }
-impl<T: ?Sized> SendsExt for T {}
 
 //-------------------------------------
 // Errors
