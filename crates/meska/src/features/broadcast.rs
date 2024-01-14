@@ -29,12 +29,17 @@ impl<P> SendProtocolNow for Sender<P> {
     type Protocol = P;
     type Error = broadcast::error::SendError<()>;
 
-    fn send_protocol_now(&self, protocol: Self::Protocol) -> Result<(), SendError<P, Self::Error>> {
+    fn send_protocol_now_with(
+        &self,
+        protocol: Self::Protocol,
+        _with: (),
+    ) -> Result<(), Error<(P, ()), Self::Error>> {
         match self.sender.send(protocol) {
             Ok(_amount) => Ok(()),
-            Err(broadcast::error::SendError(protocol)) => {
-                Err(SendError::new(protocol, broadcast::error::SendError(())))
-            }
+            Err(broadcast::error::SendError(protocol)) => Err(Error::new(
+                (protocol, ()),
+                broadcast::error::SendError(()),
+            )),
         }
     }
 }

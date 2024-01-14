@@ -2,13 +2,8 @@ use crate::*;
 use async_priority_channel as prio;
 use std::fmt::Debug;
 
-pub trait PriorityProtocol<M> {}
-
-
-
-
 pub struct Sender<P, O: Ord> {
-    sender: async_priority_channel::Sender<P, O>,
+    sender: prio::Sender<P, O>,
 }
 
 impl<P, O: Ord> Sender<P, O> {
@@ -31,39 +26,39 @@ impl<P, O: Ord> Sender<P, O> {
 
 impl<P, O: Ord> SendExt for Sender<P, O> {}
 
-impl<P: Send, O: Ord + Send> SendProtocol for Sender<P, O> {
+impl<P: Send, O: Ord + Send> SendProtocol<O> for Sender<P, O> {
     type Protocol = P;
     type Error = prio::SendError<()>;
 
-    async fn send_protocol(
+    async fn send_protocol_with(
         &self,
         protocol: Self::Protocol,
-    ) -> Result<(), SendError<Self::Protocol, Self::Error>> {
-        todo!()
-        // self.sender
-        //     .send(protocol, todo!())
-        //     .await
-        //     .map_err(|e| SendError::new(e.0, prio::SendError(())))
+        with: O,
+    ) -> Result<(), Error<(Self::Protocol, O), Self::Error>> {
+        self.sender
+            .send(protocol, with)
+            .await
+            .map_err(|e| Error::new(e.0, prio::SendError(())))
     }
 }
 
-impl<P, O: Ord> SendProtocolNow for Sender<P, O> {
+impl<P, O: Ord> SendProtocolNow<O> for Sender<P, O> {
     type Protocol = P;
     type Error = prio::TrySendError<()>;
 
-    fn send_protocol_now(
+    fn send_protocol_now_with(
         &self,
         protocol: Self::Protocol,
-    ) -> Result<(), SendError<Self::Protocol, Self::Error>> {
-        todo!()
-        // self.sender.try_send(protocol).map_err(|e| match e {
-        //     prio::TrySendError::Full(protocol) => {
-        //         SendError::new(protocol, prio::TrySendError::Full(()))
-        //     }
-        //     prio::TrySendError::Closed(protocol) => {
-        //         SendError::new(protocol, prio::TrySendError::Closed(()))
-        //     }
-        // })
+        with: O,
+    ) -> Result<(), Error<(Self::Protocol, O), Self::Error>> {
+        self.sender.try_send(protocol, with).map_err(|e| match e {
+            prio::TrySendError::Full(protocol) => {
+                Error::new(protocol, prio::TrySendError::Full(()))
+            }
+            prio::TrySendError::Closed(protocol) => {
+                Error::new(protocol, prio::TrySendError::Closed(()))
+            }
+        })
     }
 }
 

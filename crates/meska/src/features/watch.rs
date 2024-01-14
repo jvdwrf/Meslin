@@ -31,10 +31,14 @@ impl<P: Clone> SendProtocolNow for Sender<P> {
     type Protocol = P;
     type Error = watch::error::SendError<()>;
 
-    fn send_protocol_now(&self, protocol: Self::Protocol) -> Result<(), SendError<P, Self::Error>> {
+    fn send_protocol_now_with(
+        &self,
+        protocol: Self::Protocol,
+        _with: (),
+    ) -> Result<(), Error<(P, ()), Self::Error>> {
         self.sender
             .send(protocol)
-            .map_err(|e| SendError::new(e.0, watch::error::SendError(())))
+            .map_err(|e| Error::new((e.0, ()), watch::error::SendError(())))
     }
 }
 
