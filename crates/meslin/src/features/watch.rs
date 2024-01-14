@@ -25,19 +25,39 @@ impl<P> Sender<P> {
     }
 }
 
-impl<P> SendWith for Sender<P> {}
+impl<P> IsSender for Sender<P> {
+    fn is_closed(&self) -> bool {
+        self.sender.is_closed()
+    }
+
+    fn capacity(&self) -> Option<usize> {
+        None
+    }
+
+    fn len(&self) -> usize {
+        1
+    }
+
+    fn receiver_count(&self) -> usize {
+        self.sender.receiver_count()
+    }
+
+    fn sender_count(&self) -> usize {
+        1
+    }
+}
 
 impl<P: Clone + Send + Sync> SendProtocol for Sender<P> {
     type Protocol = P;
 
-    fn send_protocol_now_with(
+    fn try_send_protocol_with(
         &self,
         protocol: Self::Protocol,
         _with: (),
-    ) -> Result<(), SendNowError<(P, ())>> {
+    ) -> Result<(), TrySendError<(P, ())>> {
         self.sender
             .send(protocol)
-            .map_err(|e| SendNowError::Closed((e.0, ())))
+            .map_err(|e| TrySendError::Closed((e.0, ())))
     }
 
     async fn send_protocol_with(

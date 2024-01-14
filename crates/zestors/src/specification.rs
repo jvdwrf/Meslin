@@ -51,7 +51,7 @@ pub trait AddressSpec {
     fn try_send_protocol(
         &self,
         protocol: Self::Protocol,
-    ) -> Result<(), SendNowError<Self::Protocol>>;
+    ) -> Result<(), TrySendError<Self::Protocol>>;
 
     fn send_protocol_blocking(
         &self,
@@ -151,23 +151,23 @@ impl<T> SendError<T> {
     }
 }
 
-pub enum SendNowError<T> {
+pub enum TrySendError<T> {
     Closed(T),
     Full(T),
 }
 
-impl<T> SendNowError<T> {
+impl<T> TrySendError<T> {
     pub fn into_msg(self) -> T {
         match self {
-            SendNowError::Closed(e) => e,
-            SendNowError::Full(e) => e,
+            TrySendError::Closed(e) => e,
+            TrySendError::Full(e) => e,
         }
     }
 
     pub fn msg(&self) -> &T {
         match self {
-            SendNowError::Closed(e) => e,
-            SendNowError::Full(e) => e,
+            TrySendError::Closed(e) => e,
+            TrySendError::Full(e) => e,
         }
     }
 }

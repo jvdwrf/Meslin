@@ -25,7 +25,7 @@ impl<P, O: Ord> Sender<P, O> {
     }
 }
 
-impl<P, O: Ord> IsSender<O> for Sender<P, O> {
+impl<P, O: Ord> IsSender for Sender<P, O> {
     fn is_closed(&self) -> bool {
         self.sender.is_closed()
     }
@@ -61,14 +61,14 @@ impl<P: Send, O: Ord + Send> SendProtocol<O> for Sender<P, O> {
             .map_err(|e| SendError(e.0))
     }
 
-    fn send_protocol_now_with(
+    fn try_send_protocol_with(
         &self,
         protocol: Self::Protocol,
         with: O,
-    ) -> Result<(), SendNowError<(Self::Protocol, O)>> {
+    ) -> Result<(), TrySendError<(Self::Protocol, O)>> {
         self.sender.try_send(protocol, with).map_err(|e| match e {
-            prio::TrySendError::Full(e) => SendNowError::Full(e),
-            prio::TrySendError::Closed(e) => SendNowError::Closed(e),
+            prio::TrySendError::Full(e) => TrySendError::Full(e),
+            prio::TrySendError::Closed(e) => TrySendError::Closed(e),
         })
     }
 }

@@ -23,7 +23,7 @@ pub trait Message: Sized {
 /// This is useful for sending types that are not owned by the sender.
 ///
 /// [`Msg<T>`] implements [`Message`] for any type `T`.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Msg<T>(pub T);
 
 impl<T: Send + 'static> Message for Msg<T> {

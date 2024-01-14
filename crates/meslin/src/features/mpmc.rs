@@ -67,17 +67,17 @@ impl<P: Send> SendProtocol for Sender<P> {
         self.sender.send(protocol).map_err(|e| SendError((e.0, ())))
     }
 
-    fn send_protocol_now_with(
+    fn try_send_protocol_with(
         &self,
         protocol: Self::Protocol,
         _with: (),
-    ) -> Result<(), SendNowError<(Self::Protocol, ())>> {
+    ) -> Result<(), TrySendError<(Self::Protocol, ())>> {
         self.sender.try_send(protocol).map_err(|e| match e {
             flume::TrySendError::Disconnected(protocol) => {
-                SendNowError::Closed((protocol, ()))
+                TrySendError::Closed((protocol, ()))
             }
             flume::TrySendError::Full(protocol) => {
-                SendNowError::Full((protocol, ()))
+                TrySendError::Full((protocol, ()))
             }
         })
     }

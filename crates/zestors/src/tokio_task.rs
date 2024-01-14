@@ -4,7 +4,7 @@ use crate::{
     inbox::Inbox,
     message::Message,
     spawn::spawn,
-    specification::{AddressSpec, ChannelSpec, ChildSpec, InboxSpec, SendError, SendNowError},
+    specification::{AddressSpec, ChannelSpec, ChildSpec, InboxSpec, SendError, TrySendError},
 };
 use futures::{Future, FutureExt, Stream};
 use std::{
@@ -79,10 +79,10 @@ impl<T: Send + 'static> AddressSpec for Sender<T> {
     fn try_send_protocol(
         &self,
         protocol: Self::Protocol,
-    ) -> Result<(), SendNowError<Self::Protocol>> {
+    ) -> Result<(), TrySendError<Self::Protocol>> {
         self.sender.try_send(protocol).map_err(|e| match e {
-            tokio::sync::mpsc::error::TrySendError::Closed(e) => SendNowError::Closed(e),
-            tokio::sync::mpsc::error::TrySendError::Full(e) => SendNowError::Full(e),
+            tokio::sync::mpsc::error::TrySendError::Closed(e) => TrySendError::Closed(e),
+            tokio::sync::mpsc::error::TrySendError::Full(e) => TrySendError::Full(e),
         })
     }
 }

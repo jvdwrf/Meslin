@@ -6,7 +6,7 @@ use std::future::Future;
 //-------------------------------------
 
 /// Send a message, and wait for space
-pub trait SendProtocol<W = ()> {
+pub trait SendProtocol<W = ()>: IsSender {
     type Protocol;
 
     fn send_protocol_with(
@@ -23,11 +23,11 @@ pub trait SendProtocol<W = ()> {
         futures::executor::block_on(self.send_protocol_with(protocol, with))
     }
 
-    fn send_protocol_now_with(
+    fn try_send_protocol_with(
         &self,
         protocol: Self::Protocol,
         with: W,
-    ) -> Result<(), SendNowError<(Self::Protocol, W)>>;
+    ) -> Result<(), TrySendError<(Self::Protocol, W)>>;
 }
 
 //-------------------------------------
@@ -48,7 +48,7 @@ pub trait SendMessage<M, W = ()>: Send + Sync {
         futures::executor::block_on(Self::send_msg_with(self, msg, with))
     }
 
-    fn send_msg_now_with(&self, msg: M, with: W) -> Result<(), SendNowError<(M, W)>>;
+    fn try_send_msg_with(&self, msg: M, with: W) -> Result<(), TrySendError<(M, W)>>;
 }
 
 impl<M, W, T> SendMessage<M, W> for T
@@ -69,8 +69,8 @@ where
             .map_err(|e| e.map_into_msg_unwrap())
     }
 
-    fn send_msg_now_with(&self, msg: M, with: W) -> Result<(), SendNowError<(M, W)>> {
-        self.send_protocol_now_with(T::Protocol::from_msg(msg), with)
+    fn try_send_msg_with(&self, msg: M, with: W) -> Result<(), TrySendError<(M, W)>> {
+        self.try_send_protocol_with(T::Protocol::from_msg(msg), with)
             .map_err(|e| e.map_into_msg_first_unwrap())
     }
 }
@@ -80,7 +80,7 @@ where
 //-------------------------------------
 
 #[allow(clippy::len_without_is_empty)]
-pub trait IsSender<W = ()> {
+pub trait IsSender {
     fn is_closed(&self) -> bool;
     fn capacity(&self) -> Option<usize>;
     fn len(&self) -> usize;
@@ -128,16 +128,16 @@ pub trait SendWith<W = ()> {
         }
     }
 
-    fn send_now_with<M: Message>(
+    fn try_send_with<M: Message>(
         &self,
         msg: impl Into<M::Input>,
         with: W,
-    ) -> Result<M::Output, SendNowError<(M::Input, W)>>
+    ) -> Result<M::Output, TrySendError<(M::Input, W)>>
     where
         Self: SendMessage<M, W>,
     {
         let (msg, output) = M::create(msg.into());
-        match self.send_msg_now_with(msg, with) {
+        match self.try_send_msg_with(msg, with) {
             Ok(()) => Ok(output),
             Err(e) => Err(e.map_cancel_first(output)),
         }
@@ -164,7 +164,7 @@ pub trait SendWith<W = ()> {
         }
     }
 }
-impl<T, W> SendWith<W> for T where T: IsSender<W> {}
+impl<T, W> SendWith<W> for T where T: IsSender {}
 
 /// An extension to [`SendWith`] that provides more convenient methods.
 ///
@@ -192,14 +192,14 @@ pub trait SendExt: SendWith {
             .map_err(|e| e.map_first())
     }
 
-    fn send_protocol_now(
+    fn try_send_protocol(
         &self,
         protocol: Self::Protocol,
-    ) -> Result<(), SendNowError<Self::Protocol>>
+    ) -> Result<(), TrySendError<Self::Protocol>>
     where
         Self: SendProtocol,
     {
-        self.send_protocol_now_with(protocol, ())
+        self.try_send_protocol_with(protocol, ())
             .map_err(|e| e.map_into_first())
     }
 
@@ -219,11 +219,11 @@ pub trait SendExt: SendWith {
             .map_err(|e| e.map_first())
     }
 
-    fn send_msg_now<M: Message>(&self, msg: M) -> Result<(), SendNowError<M>>
+    fn try_send_msg<M: Message>(&self, msg: M) -> Result<(), TrySendError<M>>
     where
         Self: SendMessage<M>,
     {
-        self.send_msg_now_with(msg, ())
+        self.try_send_msg_with(msg, ())
             .map_err(|e| e.map_into_first())
     }
 
@@ -247,14 +247,14 @@ pub trait SendExt: SendWith {
         self.send_blocking_with(msg, ()).map_err(|e| e.map_first())
     }
 
-    fn send_now<M: Message>(
+    fn try_send<M: Message>(
         &self,
         msg: impl Into<M::Input>,
-    ) -> Result<M::Output, SendNowError<M::Input>>
+    ) -> Result<M::Output, TrySendError<M::Input>>
     where
         Self: SendMessage<M>,
     {
-        self.send_now_with(msg, ()).map_err(|e| e.map_into_first())
+        self.try_send_with(msg, ()).map_err(|e| e.map_into_first())
     }
 
     fn request<M: Message>(
@@ -328,45 +328,52 @@ impl<T, W> SendError<(T, W)> {
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-pub enum SendNowError<T> {
+pub enum TrySendError<T> {
     Closed(T),
     Full(T),
 }
 
-impl<T> SendNowError<T> {
+impl<T> TrySendError<T> {
     pub fn into_inner(self) -> T {
         match self {
             Self::Closed(t) => t,
             Self::Full(t) => t,
         }
     }
+
+    pub(crate) fn map<T2>(self, fun: impl FnOnce(T) -> T2) -> TrySendError<T2> {
+        match self {
+            Self::Closed(t) => TrySendError::Closed(fun(t)),
+            Self::Full(t) => TrySendError::Full(fun(t)),
+        }
+    }
 }
 
-impl<T, W> SendNowError<(T, W)> {
-    fn map_into_first(self) -> SendNowError<T> {
+impl<T, W> TrySendError<(T, W)> {
+    fn map_into_first(self) -> TrySendError<T> {
         match self {
-            Self::Closed(t) => SendNowError::Closed(t.0),
-            Self::Full(t) => SendNowError::Full(t.0),
+            Self::Closed(t) => TrySendError::Closed(t.0),
+            Self::Full(t) => TrySendError::Full(t.0),
         }
     }
 
-    fn map_cancel_first(self, output: T::Output) -> SendNowError<(T::Input, W)>
+    fn map_cancel_first(self, output: T::Output) -> TrySendError<(T::Input, W)>
     where
         T: Message,
     {
         match self {
-            Self::Closed(t) => SendNowError::Closed((t.0.cancel(output), t.1)),
-            Self::Full(t) => SendNowError::Full((t.0.cancel(output), t.1)),
+            Self::Closed(t) => TrySendError::Closed((t.0.cancel(output), t.1)),
+            Self::Full(t) => TrySendError::Full((t.0.cancel(output), t.1)),
         }
     }
 
-    fn map_into_msg_first_unwrap<M>(self) -> SendNowError<(M, W)>
+    fn map_into_msg_first_unwrap<M>(self) -> TrySendError<(M, W)>
     where
         T: Accept<M>,
     {
         match self {
-            Self::Closed(t) => SendNowError::Closed((t.0.try_into_msg().unwrap_silent(), t.1)),
-            Self::Full(t) => SendNowError::Full((t.0.try_into_msg().unwrap_silent(), t.1)),
+            Self::Closed(t) => TrySendError::Closed((t.0.try_into_msg().unwrap_silent(), t.1)),
+            Self::Full(t) => TrySendError::Full((t.0.try_into_msg().unwrap_silent(), t.1)),
         }
     }
 }

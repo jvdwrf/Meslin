@@ -1,5 +1,5 @@
 use crate::AnyBox;
-use std::any::TypeId;
+use std::{any::TypeId, fmt::Debug, marker::PhantomData};
 
 /// A protocol defines the messages it accepts by implementing this trait.
 ///
@@ -19,24 +19,18 @@ pub trait Accept<M>: Sized {
 /// at runtime, [`Message`](crate)s are checked for acceptance.
 ///
 /// This can be derived on an enum using [`macro@DynProtocol`]
-pub trait DynProtocol: Sized {
-    // todo: fix bug, where a message can be converted from a boxed message
-    // to the protocol, and then into a boxed message with another type-id.
-    // We can use the marker-type for this instead of the real Accepts<M>.
-
-    /// Check whether the given [`Message`] is accepted.
-    fn accepts(type_id: TypeId) -> bool {
-        Self::accepted().contains(&type_id)
-    }
+pub trait DynAccept<W = ()>: Sized {
     /// Get the list of accepted [`Message`]s.
-    fn accepted() -> &'static [TypeId];
+    #[must_use]
+    fn accepts_all() -> &'static [TypeId];
 
     /// Attempt to convert a bxed [`Message`] into the full protocol (enum),
     /// failing if the message is not accepted.
-    fn try_from_boxed_msg(msg: AnyBox) -> Result<Self, AnyBox>;
+    fn try_from_boxed_msg(msg: BoxedMsg<W>) -> Result<(Self, W), BoxedMsg<W>>;
 
     /// Convert the full protocol (enum) into a boxed [`Message`].
-    fn into_boxed_msg(self) -> AnyBox;
+    #[must_use]
+    fn into_boxed_msg(self, with: W) -> BoxedMsg<W>;
 }
 
 /// A marker trait for [`AcceptsDyn`], to signal that a message is accepted.
@@ -45,4 +39,42 @@ pub trait DynProtocol: Sized {
 /// methods will panic.
 ///
 /// This can be derived on an enum using [`macro@AcceptsDyn`]
-pub trait DynProtocolMarker<M> {}
+pub trait DynAcceptMarker<M, W = ()> {}
+
+pub struct BoxedMsg<W = ()> {
+    w: PhantomData<fn() -> W>,
+    inner: AnyBox,
+}
+
+impl<W> Debug for BoxedMsg<W> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("BoxedMsgWith").field(&self.inner).finish()
+    }
+}
+
+impl<W> BoxedMsg<W> {
+    pub fn new<M>(t: M, with: W) -> Self
+    where
+        M: Send + 'static,
+        W: Send + 'static,
+    {
+        Self {
+            w: PhantomData,
+            inner: Box::new((t, with)),
+        }
+    }
+
+    pub fn downcast<M>(self) -> Result<(M, W), Self>
+    where
+        M: 'static,
+        W: 'static,
+    {
+        match self.inner.downcast::<(M, W)>() {
+            Ok(t) => Ok(*t),
+            Err(boxed) => Err(Self {
+                w: PhantomData,
+                inner: boxed,
+            }),
+        }
+    }
+}

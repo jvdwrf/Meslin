@@ -41,7 +41,7 @@ async fn test_basic_protocol_sending() {
         .await
         .unwrap();
     let (request, _rx) = Request::new(10);
-    sender.send_protocol_now(MyProtocol::C(request)).unwrap();
+    sender.try_send_protocol(MyProtocol::C(request)).unwrap();
     sender.send_protocol_blocking(MyProtocol::A(4)).unwrap();
     drop(sender);
 }
@@ -71,7 +71,7 @@ async fn test_basic_msg_sending() {
         .await
         .unwrap();
     let (request, _rx) = Request::new(10);
-    sender.send_msg_now(request).unwrap();
+    sender.try_send_msg(request).unwrap();
     drop(sender);
 }
 

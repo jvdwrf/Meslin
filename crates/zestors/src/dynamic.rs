@@ -1,8 +1,8 @@
 use crate::{
     message::{DynamicProtocol, Message, Protocol, ProtocolMarker},
     specification::{
-        AddressSpec, DynAddressSpec, FromSpec, SendDynError, SendError, SendNowError,
-        TrySendDynError,
+        AddressSpec, DynAddressSpec, FromSpec, SendDynError, SendError, TrySendDynError,
+        TrySendError,
     },
     AnyBox, ResultExt,
 };
@@ -57,7 +57,7 @@ impl<T: ?Sized> AddressSpec for DynSpec<T> {
         async { unreachable!() }
     }
 
-    fn try_send_protocol(&self, _: Self::Protocol) -> Result<(), SendNowError<Self::Protocol>> {
+    fn try_send_protocol(&self, _: Self::Protocol) -> Result<(), TrySendError<Self::Protocol>> {
         unreachable!()
     }
 }
@@ -192,10 +192,10 @@ where
             .map_err(TrySendDynError::NotAccepted)?;
 
         self.try_send_protocol(protocol).map_err(|e| match e {
-            SendNowError::Closed(protocol) => {
+            TrySendError::Closed(protocol) => {
                 TrySendDynError::Closed(<S::Protocol as DynamicProtocol>::into_boxed_msg(protocol))
             }
-            SendNowError::Full(protocol) => {
+            TrySendError::Full(protocol) => {
                 TrySendDynError::Full(<S::Protocol as DynamicProtocol>::into_boxed_msg(protocol))
             }
         })
