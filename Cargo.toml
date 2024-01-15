@@ -1,2 +1,2 @@
 [workspace]
-members = ["crates/zestors", "crates/meslin", "crates/meslin-derive"]
+members = ["crates/meslin", "crates/meslin-derive"]
