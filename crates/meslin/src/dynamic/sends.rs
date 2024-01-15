@@ -22,7 +22,7 @@ pub trait DynSends: IsSender + Send + 'static {
 
     fn accepts_all(&self) -> &'static [TypeId];
 
-    fn clone_boxed(&self) -> Box<dyn DynSends<With = Self::With>>;
+    fn clone_boxed(&self) -> BoxedSender<Self::With>;
 }
 
 //-------------------------------------
@@ -82,16 +82,16 @@ where
         T::Protocol::accepts_all()
     }
 
-    fn clone_boxed(&self) -> Box<dyn DynSends<With = Self::With>> {
+    fn clone_boxed(&self) -> BoxedSender<Self::With> {
         Box::new(self.clone())
     }
 }
 
 //-------------------------------------
-// Implement for Box<dyn DynSends>
+// Implement for BoxSender
 //-------------------------------------
 
-impl<W: 'static> DynSends for Box<dyn DynSends<With = W>> {
+impl<W: 'static> DynSends for BoxedSender<W> {
     fn dyn_send_boxed_msg_with(
         &self,
         msg: BoxedMsg<Self::With>,
@@ -117,12 +117,12 @@ impl<W: 'static> DynSends for Box<dyn DynSends<With = W>> {
         (**self).accepts_all()
     }
 
-    fn clone_boxed(&self) -> Box<dyn DynSends<With = Self::With>> {
+    fn clone_boxed(&self) -> BoxedSender<Self::With> {
         (**self).clone_boxed()
     }
 }
 
-impl<W> IsSender for Box<dyn DynSends<With = W>> {
+impl<W> IsSender for BoxedSender<W> {
     type With = W;
 
     fn is_closed(&self) -> bool {
@@ -146,7 +146,7 @@ impl<W> IsSender for Box<dyn DynSends<With = W>> {
     }
 }
 
-impl<T: 'static> Clone for Box<dyn DynSends<With = T>> {
+impl<T: 'static> Clone for BoxedSender<T> {
     fn clone(&self) -> Self {
         (**self).clone_boxed()
     }

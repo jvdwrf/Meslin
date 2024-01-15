@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{Data, DeriveInput};
 
-pub fn derive_dyn_from_into(input: DeriveInput) -> syn::Result<TokenStream> {
+pub fn derive(input: DeriveInput) -> syn::Result<TokenStream> {
     let name = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
@@ -42,6 +42,7 @@ pub fn derive_dyn_from_into(input: DeriveInput) -> syn::Result<TokenStream> {
         .collect::<Result<Vec<_>, _>>()?;
 
     Ok(quote! {
+        #[automatically_derived]
         impl #impl_generics meslin::AcceptsAll for #name #ty_generics #where_clause {
             fn accepts_all() -> &'static [std::any::TypeId] {
                 static LOCK: std::sync::OnceLock<[std::any::TypeId; 3]> = std::sync::OnceLock::new();
@@ -53,6 +54,7 @@ pub fn derive_dyn_from_into(input: DeriveInput) -> syn::Result<TokenStream> {
             }
         }
 
+        #[automatically_derived]
         impl #impl_generics meslin::DynFromInto for #name #ty_generics #where_clause {
             fn try_from_boxed_msg<_W: 'static>(
                 msg: meslin::BoxedMsg<_W>,
@@ -76,6 +78,7 @@ pub fn derive_dyn_from_into(input: DeriveInput) -> syn::Result<TokenStream> {
         }
 
         #(
+            #[automatically_derived]
             impl #impl_generics meslin::Accepts<#variant_types> for #name #ty_generics #where_clause {}
         )*
     })

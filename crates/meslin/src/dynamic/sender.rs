@@ -7,27 +7,11 @@ use std::{
 };
 
 pub struct DynSender<A: ?Sized, W = ()> {
-    sender: Box<dyn DynSends<With = W>>,
+    sender: BoxedSender<W>,
     t: PhantomData<fn() -> A>,
 }
 
-impl<A: ?Sized, W: Debug> Debug for DynSender<A, W> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("DynSender")
-            .field("sender", &"...")
-            .field("t", &type_name::<A>())
-            .finish()
-    }
-}
-
 impl<A: ?Sized, W> DynSender<A, W> {
-    pub fn new_unchecked<S>(sender: S) -> Self
-    where
-        S: DynSends<With = W>,
-    {
-        Self::from_inner_unchecked(Box::new(sender))
-    }
-
     pub fn new<S>(sender: S) -> Self
     where
         S: SendsProtocol + DynSends<With = W>,
@@ -36,11 +20,18 @@ impl<A: ?Sized, W> DynSender<A, W> {
         Self::new_unchecked(sender)
     }
 
+    pub fn new_unchecked<S>(sender: S) -> Self
+    where
+        S: DynSends<With = W>,
+    {
+        Self::from_boxed_sender_unchecked(Box::new(sender))
+    }
+
     pub fn transform<A2: ?Sized>(self) -> DynSender<A2, W>
     where
         A2: TransformFrom<A>,
     {
-        DynSender::from_inner_unchecked(self.sender)
+        DynSender::from_boxed_sender_unchecked(self.sender)
     }
 
     pub fn try_transform<A2: ?Sized>(self) -> Result<DynSender<A2, W>, Self>
@@ -53,34 +44,25 @@ impl<A: ?Sized, W> DynSender<A, W> {
             .iter()
             .all(|t2| self.accepts_all().contains(t2))
         {
-            Ok(DynSender::from_inner_unchecked(self.sender))
+            Ok(DynSender::from_boxed_sender_unchecked(self.sender))
         } else {
             Err(self)
         }
     }
 
     pub fn transform_unchecked<T2: ?Sized>(self) -> DynSender<T2, W> {
-        DynSender::from_inner_unchecked(self.sender)
+        DynSender::from_boxed_sender_unchecked(self.sender)
     }
 
-    pub fn from_inner_unchecked(sender: Box<dyn DynSends<With = W>>) -> Self {
+    pub fn from_boxed_sender_unchecked(sender: BoxedSender<W>) -> Self {
         Self {
             sender,
             t: PhantomData,
         }
     }
 
-    pub fn into_inner(self) -> Box<dyn DynSends<With = W>> {
+    pub fn into_boxed_sender(self) -> BoxedSender<W> {
         self.sender
-    }
-}
-
-impl<A: ?Sized, W: 'static> Clone for DynSender<A, W> {
-    fn clone(&self) -> Self {
-        Self {
-            sender: self.sender.clone(),
-            t: PhantomData,
-        }
     }
 }
 
@@ -138,7 +120,7 @@ where
         self.sender.accepts_all()
     }
 
-    fn clone_boxed(&self) -> Box<dyn DynSends<With = Self::With>> {
+    fn clone_boxed(&self) -> BoxedSender<Self::With> {
         self.sender.clone_boxed()
     }
 }
@@ -182,6 +164,24 @@ where
                 DynTrySendError::Closed((msg, with)) => TrySendError::Closed((msg, with)),
                 DynTrySendError::Full((msg, with)) => TrySendError::Full((msg, with)),
             }),
+        }
+    }
+}
+
+impl<A: ?Sized, W: Debug> Debug for DynSender<A, W> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DynSender")
+            .field("sender", &"...")
+            .field("t", &type_name::<A>())
+            .finish()
+    }
+}
+
+impl<A: ?Sized, W: 'static> Clone for DynSender<A, W> {
+    fn clone(&self) -> Self {
+        Self {
+            sender: self.sender.clone(),
+            t: PhantomData,
         }
     }
 }

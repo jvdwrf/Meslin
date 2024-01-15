@@ -6,7 +6,7 @@ use crate::*;
 
 impl<T> DynSendsExt for T where T: DynSends {}
 pub trait DynSendsExt: DynSends {
-    fn into_boxed_sender(self) -> Box<dyn DynSends<With = Self::With>>
+    fn into_boxed_sender(self) -> BoxedSender<Self::With>
     where
         Self: Sized,
     {

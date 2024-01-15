@@ -3,6 +3,8 @@ mod request;
 #[cfg(feature = "request")]
 pub use request::*;
 
+use crate::DynSends;
+
 #[cfg(feature = "derive")]
 pub use {
     derive_more::{From, TryInto},
@@ -21,3 +23,5 @@ pub mod mpmc;
 
 #[cfg(feature = "priority")]
 pub mod priority;
+
+pub(crate) type BoxedSender<W = ()> = Box<dyn DynSends<With = W>>;
