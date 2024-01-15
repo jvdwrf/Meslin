@@ -20,7 +20,7 @@ use std::{any::TypeId, fmt::Debug, marker::PhantomData};
 /// at runtime, [`Message`](crate)s are checked for acceptance.
 ///
 /// This can be derived on an enum using [`macro@DynProtocol`]
-pub trait BoxedFromInto: Sized {
+pub trait DynFromInto: Sized {
     /// Get the list of accepted [`Message`]s.
     #[must_use]
     fn accepts_all() -> &'static [TypeId];
@@ -34,13 +34,7 @@ pub trait BoxedFromInto: Sized {
     fn into_boxed_msg<W: Send + 'static>(self, with: W) -> BoxedMsg<W>;
 }
 
-/// A marker trait for [`AcceptsDyn`], to signal that a message is accepted.
-///
-/// When implemented on a type that is not actually accepted, the `send`
-/// methods will panic.
-///
-/// This can be derived on an enum using [`macro@AcceptsDyn`]
-pub trait DynAcceptMarker<M, W = ()> {}
+
 
 pub struct BoxedMsg<W = ()> {
     w: PhantomData<fn() -> W>,
