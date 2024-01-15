@@ -1,9 +1,5 @@
-use std::{any::TypeId, sync::OnceLock};
-
-use meslin::{
-    marker::{AcceptsNone, AcceptsOne},
-    *,
-};
+use meslin::*;
+use std::any::TypeId;
 
 /// Example protocol that can be used
 #[derive(Debug, Message, From, TryInto)]
@@ -13,19 +9,23 @@ pub enum MyProtocol {
     C(Request<u32, String>),
 }
 
-impl DynFromInto for MyProtocol {
+impl AcceptsAll for MyProtocol {
     fn accepts_all() -> &'static [std::any::TypeId] {
-        static LOCK: OnceLock<[TypeId; 3]> = OnceLock::new();
+        static LOCK: std::sync::OnceLock<[TypeId; 3]> = std::sync::OnceLock::new();
         LOCK.get_or_init(|| {
             [
-                TypeId::of::<u32>(),
-                TypeId::of::<HelloWorld>(),
-                TypeId::of::<Request<u32, String>>(),
+                std::any::TypeId::of::<u32>(),
+                std::any::TypeId::of::<HelloWorld>(),
+                std::any::TypeId::of::<Request<u32, String>>(),
             ]
         })
     }
+}
 
-    fn try_from_boxed_msg<W: 'static>(msg: BoxedMsg<W>) -> Result<(Self, W), BoxedMsg<W>> {
+impl DynFromInto for MyProtocol {
+    fn try_from_boxed_msg<W: 'static>(
+        msg: crate::BoxedMsg<W>,
+    ) -> Result<(Self, W), crate::BoxedMsg<W>> {
         let msg = match msg.downcast::<u32>() {
             Ok((msg, with)) => return Ok((MyProtocol::A(msg), with)),
             Err(msg) => msg,
@@ -41,14 +41,18 @@ impl DynFromInto for MyProtocol {
         Err(msg)
     }
 
-    fn into_boxed_msg<W: Send + 'static>(self, with: W) -> BoxedMsg<W> {
+    fn into_boxed_msg<W: Send + 'static>(self, with: W) -> crate::BoxedMsg<W> {
         match self {
-            MyProtocol::A(msg) => BoxedMsg::new(msg, with),
-            MyProtocol::B(msg) => BoxedMsg::new(msg, with),
-            MyProtocol::C(msg) => BoxedMsg::new(msg, with),
+            MyProtocol::A(msg) => crate::BoxedMsg::new(msg, with),
+            MyProtocol::B(msg) => crate::BoxedMsg::new(msg, with),
+            MyProtocol::C(msg) => crate::BoxedMsg::new(msg, with),
         }
     }
 }
+
+impl Accepts<u32> for MyProtocol {}
+impl Accepts<HelloWorld> for MyProtocol {}
+impl Accepts<Request<u32, String>> for MyProtocol {}
 
 #[derive(Debug, Message, From)]
 #[from(forward)]
@@ -64,18 +68,17 @@ async fn test() {
         .await
         .unwrap();
 
-    let dyn_sender = DynSender::<Accepts!(HelloWorld)>::from_inner_unchecked(boxed_sender);
+    let dyn_sender = DynSender::<Accepts![HelloWorld]>::from_inner_unchecked(boxed_sender);
     dyn_sender
         .dyn_send::<HelloWorld>("Hello world!")
         .await
         .unwrap();
 
-    static LOCK: OnceLock<[TypeId; 1]> = OnceLock::new();
-    LOCK.get_or_init(|| [TypeId::of::<HelloWorld>()]);
-
     let dyn_sender = DynSender::<Accepts![HelloWorld, u32]>::new(sender.clone());
     let dyn_sender = dyn_sender.transform::<Accepts![u32]>();
 
     let dyn_sender = dyn_sender.try_transform::<Accepts![HelloWorld]>().unwrap();
-    dyn_sender.try_transform::<Accepts![u64, u32]>().unwrap_err();
+    dyn_sender
+        .try_transform::<Accepts![u64, u32]>()
+        .unwrap_err();
 }

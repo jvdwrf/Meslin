@@ -204,19 +204,6 @@ impl<T, W> DynTrySendError<(T, W)> {
         }
     }
 
-    pub(crate) fn map_into_msg_unwrap<M2>(self) -> DynTrySendError<(M2, W)>
-    where
-        T: TryInto<M2>,
-    {
-        match self {
-            Self::NotAccepted(t) => {
-                DynTrySendError::NotAccepted((t.0.try_into().unwrap_silent(), t.1))
-            }
-            Self::Closed(t) => DynTrySendError::Closed((t.0.try_into().unwrap_silent(), t.1)),
-            Self::Full(t) => DynTrySendError::Full((t.0.try_into().unwrap_silent(), t.1)),
-        }
-    }
-
     pub(crate) fn map_cancel_first(self, output: T::Output) -> DynTrySendError<(T::Input, W)>
     where
         T: Message,
