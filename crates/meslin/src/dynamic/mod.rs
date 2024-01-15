@@ -2,6 +2,7 @@ use crate::*;
 use futures::{future::BoxFuture, Future};
 use std::{
     any::{type_name, TypeId},
+    fmt::Debug,
     marker::PhantomData,
 };
 mod dyn_sends_ext;
@@ -9,31 +10,66 @@ mod wrappers;
 pub use dyn_sends_ext::*;
 mod dyn_sends;
 pub use dyn_sends::*;
+mod accept;
+pub use accept::*;
 
 /// DynSender<Accepts![Ping, Pong], u32>
 /// DynSender<NoClone<AcceptTwo<Ping, Pong>>, u32>
-pub struct DynSender<T, W = ()> {
+pub struct DynSender<T: ?Sized, W = ()> {
     sender: Box<dyn DynSends<With = W>>,
     t: PhantomData<fn() -> T>,
 }
 
-/// A marker trait for [`AcceptsDyn`], to signal that a message is accepted.
-///
-/// When implemented on a type that is not actually accepted, the `send`
-/// methods will panic.
-///
-/// This can be derived on an enum using [`macro@AcceptsDyn`]
-pub trait Accepts<M, W = ()> {}
+impl<T: ?Sized, W: Debug> Debug for DynSender<T, W> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DynSender")
+            .field("sender", &"...")
+            .field("t", &type_name::<T>())
+            .finish()
+    }
+}
 
-impl<T, W> DynSender<T, W> {
+impl<T: ?Sized, W> DynSender<T, W> {
     pub fn new_unchecked<S>(sender: S) -> Self
     where
         S: DynSends<With = W>,
     {
-        Self {
-            sender: Box::new(sender),
-            t: PhantomData,
+        Self::from_inner_unchecked(Box::new(sender))
+    }
+
+    pub fn new<S>(sender: S) -> Self
+    where
+        S: SendsProtocol + DynSends<With = W>,
+        T: TransformFrom<S::Protocol>,
+    {
+        Self::new_unchecked(sender)
+    }
+
+    pub fn transform<T2: ?Sized>(self) -> DynSender<T2, W>
+    where
+        T2: TransformFrom<T>,
+    {
+        DynSender::from_inner_unchecked(self.sender)
+    }
+
+    pub fn try_transform<T2: ?Sized>(self) -> Result<DynSender<T2, W>, Self>
+    where
+        T2: TryAccept,
+        W: 'static,
+        T: 'static,
+    {
+        if T2::accepts_all()
+            .iter()
+            .all(|t2| self.accepts_all().contains(t2))
+        {
+            Ok(DynSender::from_inner_unchecked(self.sender))
+        } else {
+            Err(self)
         }
+    }
+
+    pub fn transform_unchecked<T2: ?Sized>(self) -> DynSender<T2, W> {
+        DynSender::from_inner_unchecked(self.sender)
     }
 
     pub fn from_inner_unchecked(sender: Box<dyn DynSends<With = W>>) -> Self {
@@ -48,7 +84,7 @@ impl<T, W> DynSender<T, W> {
     }
 }
 
-impl<T, W: 'static> Clone for DynSender<T, W> {
+impl<T: ?Sized, W: 'static> Clone for DynSender<T, W> {
     fn clone(&self) -> Self {
         Self {
             sender: self.sender.clone(),
@@ -57,7 +93,7 @@ impl<T, W: 'static> Clone for DynSender<T, W> {
     }
 }
 
-impl<T, W> IsSender for DynSender<T, W> {
+impl<T: ?Sized, W> IsSender for DynSender<T, W> {
     type With = W;
 
     fn is_closed(&self) -> bool {
@@ -81,7 +117,7 @@ impl<T, W> IsSender for DynSender<T, W> {
     }
 }
 
-impl<T, W> DynSends for DynSender<T, W>
+impl<T: ?Sized, W> DynSends for DynSender<T, W>
 where
     T: 'static,
     W: 'static,
@@ -116,7 +152,7 @@ where
     }
 }
 
-impl<T, W, M> Sends<M> for DynSender<T, W>
+impl<T: ?Sized, W, M> Sends<M> for DynSender<T, W>
 where
     T: Accepts<M, W>,
     M: Send + 'static,
