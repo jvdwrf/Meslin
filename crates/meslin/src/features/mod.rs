@@ -10,7 +10,6 @@ pub use {
     derive_more::{From, TryInto},
     meslin_derive::*,
 };
-// #[cfg(feature = "derive")]
 
 #[cfg(feature = "broadcast")]
 pub mod broadcast;

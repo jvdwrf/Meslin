@@ -5,6 +5,8 @@ pub struct Sender<P> {
     sender: flume::Sender<P>,
 }
 
+pub use flume::Receiver;
+
 impl<P> Sender<P> {
     pub fn inner(&self) -> &flume::Sender<P> {
         &self.sender
@@ -25,7 +27,7 @@ impl<P> Sender<P> {
 
 impl<P> IsSender for Sender<P> {
     type With = ();
-    
+
     fn is_closed(&self) -> bool {
         self.sender.is_disconnected()
     }
@@ -75,12 +77,8 @@ impl<P: Send> SendsProtocol for Sender<P> {
         _with: (),
     ) -> Result<(), TrySendError<(Self::Protocol, ())>> {
         this.sender.try_send(protocol).map_err(|e| match e {
-            flume::TrySendError::Disconnected(protocol) => {
-                TrySendError::Closed((protocol, ()))
-            }
-            flume::TrySendError::Full(protocol) => {
-                TrySendError::Full((protocol, ()))
-            }
+            flume::TrySendError::Disconnected(protocol) => TrySendError::Closed((protocol, ())),
+            flume::TrySendError::Full(protocol) => TrySendError::Full((protocol, ())),
         })
     }
 }

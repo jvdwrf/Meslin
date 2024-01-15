@@ -1,6 +1,8 @@
 use crate::*;
+use thiserror::Error;
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Error)]
+#[error("Channel is closed: Failed to send message {0:?}.")]
 pub struct SendError<T>(pub T);
 
 impl<T> SendError<T> {
@@ -33,9 +35,11 @@ impl<T, W> SendError<(T, W)> {
     }
 }
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Error)]
 pub enum TrySendError<T> {
+    #[error("Channel is closed: Failed to send message {0:?}.")]
     Closed(T),
+    #[error("Channel is full: Failed to send message {0:?}.")]
     Full(T),
 }
 
@@ -84,10 +88,12 @@ impl<T, W> TrySendError<(T, W)> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Error)]
 pub enum RequestError<M, E> {
+    #[error("Channel is closed: Failed to send message {0:?}.")]
     Full(M),
-    NoReply(E),
+    #[error("No reply received: {0}")]
+    NoReply(#[source] E),
 }
 
 impl<T, E> From<SendError<T>> for RequestError<T, E> {
@@ -96,9 +102,11 @@ impl<T, E> From<SendError<T>> for RequestError<T, E> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Error)]
 pub enum DynSendError<T> {
+    #[error("Message {0:?} was not accepted.")]
     NotAccepted(T),
+    #[error("Channel is closed: Failed to send message {0:?}.")]
     Closed(T),
 }
 
@@ -170,10 +178,13 @@ impl<T> From<SendError<T>> for DynSendError<T> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Error)]
 pub enum DynTrySendError<T> {
+    #[error("Message {0:?} was not accepted.")]
     NotAccepted(T),
+    #[error("Channel is closed: Failed to send message {0:?}.")]
     Closed(T),
+    #[error("Channel is full: Failed to send message {0:?}.")]
     Full(T),
 }
 
