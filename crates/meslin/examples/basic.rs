@@ -1,4 +1,4 @@
-use meslin::{mpmc, DynFromInto, From, Message, Request, SendsExt, TryInto};
+use meslin::{mpmc, From, Message, Request, SendsExt, TryInto};
 
 #[derive(Debug, From, Message)]
 #[from(forward)]
@@ -19,6 +19,14 @@ async fn main() {
     sender.send::<MyMessage>("Hello").await.unwrap();
     sender.send::<i32>(42).await.unwrap();
     let reply = sender.request::<Request<i32, String>>(42).await.unwrap();
+    assert_eq!(reply, "The number is 42");
+
+    let reply = sender
+        .send::<Request<i32, String>>(42)
+        .await
+        .unwrap()
+        .await
+        .unwrap();
     assert_eq!(reply, "The number is 42");
 }
 
