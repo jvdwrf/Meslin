@@ -10,7 +10,7 @@ pub trait Message: Sized {
     type Input;
 
     /// The type that is returned when the message is sent.
-    type Output: Send;
+    type Output;
 
     /// Create a message from the given input.
     fn create(input: Self::Input) -> (Self, Self::Output);

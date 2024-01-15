@@ -1,36 +1,37 @@
 use crate::AnyBox;
 use std::{any::TypeId, fmt::Debug, marker::PhantomData};
 
-/// A protocol defines the messages it accepts by implementing this trait.
-///
-/// Usually the protocol is an enum that implements [`ProtocolFor<M>`] for each variant.
-/// It should not be implemented for `Self`, but only for the variants.
-///
-/// This can be derived on an enum using [`macro@Protocol`](crate)
-pub trait Accept<M>: Sized {
-    /// Convert a message into the protocol.
-    fn from_msg(msg: M) -> Self;
+// /// A protocol defines the messages it accepts by implementing this trait.
+// ///
+// /// Usually the protocol is an enum that implements [`ProtocolFor<M>`] for each variant.
+// /// It should not be implemented for `Self`, but only for the variants.
+// ///
+// /// This can be derived on an enum using [`macro@Protocol`](crate)
+// pub trait FromInto<M>: Sized {
+//     /// Convert a message into the protocol.
+//     #[must_use]
+//     fn from_msg(msg: M) -> Self;
 
-    /// Attemppt to convert the protocol into the message (variant).
-    fn try_into_msg(self) -> Result<M, Self>;
-}
+//     /// Attemppt to convert the protocol into the message (variant).
+//     fn try_into_msg(self) -> Result<M, Self>;
+// }
 
 /// A variant of [`ProtocolFor`] that can be used for dynamic dispatch, meaning that
 /// at runtime, [`Message`](crate)s are checked for acceptance.
 ///
 /// This can be derived on an enum using [`macro@DynProtocol`]
-pub trait DynAccept<W = ()>: Sized {
+pub trait BoxedFromInto: Sized {
     /// Get the list of accepted [`Message`]s.
     #[must_use]
     fn accepts_all() -> &'static [TypeId];
 
     /// Attempt to convert a bxed [`Message`] into the full protocol (enum),
     /// failing if the message is not accepted.
-    fn try_from_boxed_msg(msg: BoxedMsg<W>) -> Result<(Self, W), BoxedMsg<W>>;
+    fn try_from_boxed_msg<W: 'static>(msg: BoxedMsg<W>) -> Result<(Self, W), BoxedMsg<W>>;
 
     /// Convert the full protocol (enum) into a boxed [`Message`].
     #[must_use]
-    fn into_boxed_msg(self, with: W) -> BoxedMsg<W>;
+    fn into_boxed_msg<W: Send + 'static>(self, with: W) -> BoxedMsg<W>;
 }
 
 /// A marker trait for [`AcceptsDyn`], to signal that a message is accepted.

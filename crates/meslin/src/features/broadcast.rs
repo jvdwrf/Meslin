@@ -5,6 +5,8 @@ pub struct Sender<P> {
     sender: broadcast::Sender<P>,
 }
 
+pub use broadcast::Receiver;
+
 impl<P> Sender<P> {
     pub fn inner(&self) -> &broadcast::Sender<P> {
         &self.sender
@@ -24,6 +26,8 @@ impl<P> Sender<P> {
 }
 
 impl<P> IsSender for Sender<P> {
+    type With = ();
+
     fn is_closed(&self) -> bool {
         false
     }
@@ -41,30 +45,31 @@ impl<P> IsSender for Sender<P> {
     }
 
     fn sender_count(&self) -> usize {
-        1
+        // https://docs.rs/async-broadcast/latest/async_broadcast/
+        todo!("Switch to another library that implements sender_count for broadcast")
     }
 }
 
-impl<P: Send> SendProtocol for Sender<P> {
+impl<P: Send> SendsProtocol for Sender<P> {
     type Protocol = P;
 
     fn try_send_protocol_with(
-        &self,
+        this: &Self,
         protocol: Self::Protocol,
         _with: (),
     ) -> Result<(), TrySendError<(P, ())>> {
-        self.sender
+        this.sender
             .send(protocol)
             .map(|_| ())
             .map_err(|e| TrySendError::Closed((e.0, ())))
     }
 
     async fn send_protocol_with(
-        &self,
+        this: &Self,
         protocol: Self::Protocol,
         _with: (),
     ) -> Result<(), SendError<(Self::Protocol, ())>> {
-        self.sender
+        this.sender
             .send(protocol)
             .map(|_| ())
             .map_err(|e| SendError((e.0, ())))

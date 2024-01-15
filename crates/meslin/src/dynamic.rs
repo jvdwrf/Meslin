@@ -2,50 +2,58 @@ use crate::*;
 use futures::{future::BoxFuture, Future};
 use std::{any::TypeId, marker::PhantomData};
 
-// / DynSender![Ping, Pong with u32: !Clone]
+/// DynSender<Accepts![Ping, Pong], u32>
+/// DynSender<NoClone<AcceptTwo<Ping, Pong>>, u32>
 pub struct DynSender<T, W = ()> {
-    sender: Box<dyn DynSend<W>>,
+    sender: Box<dyn IsDynSender<With = W>>,
     t: PhantomData<fn() -> T>,
 }
 
-pub trait DynSpecifier {
-    type With;
+impl<T, W> Clone for DynSender<T, W> {
+    fn clone(&self) -> Self {
+        Self {
+            sender: self.sender.clone(),
+            t: PhantomData,
+        }
+    }
 }
 
-pub trait DynSend<W = ()>: IsSender {
+pub trait IsDynSender: IsSender {
     fn dyn_send_boxed_msg_with(
         &self,
-        msg: BoxedMsg<W>,
-    ) -> BoxFuture<Result<(), DynSendError<BoxedMsg<W>>>>;
+        msg: BoxedMsg<Self::With>,
+    ) -> BoxFuture<Result<(), DynSendError<BoxedMsg<Self::With>>>>;
 
     fn dyn_send_boxed_msg_blocking_with(
         &self,
-        msg: BoxedMsg<W>,
-    ) -> Result<(), DynSendError<BoxedMsg<W>>>;
+        msg: BoxedMsg<Self::With>,
+    ) -> Result<(), DynSendError<BoxedMsg<Self::With>>>;
 
     fn dyn_try_send_boxed_msg_with(
         &self,
-        msg: BoxedMsg<W>,
-    ) -> Result<(), DynTrySendError<BoxedMsg<W>>>;
+        msg: BoxedMsg<Self::With>,
+    ) -> Result<(), DynTrySendError<BoxedMsg<Self::With>>>;
 
     fn accepts_all(&self) -> &'static [TypeId];
+
+    fn clone_boxed(&self) -> Box<dyn IsDynSender<With = Self::With>>;
 }
 
-impl<T, W> DynSend<W> for T
+impl<T> IsDynSender for T
 where
-    T: SendProtocol<W> + Sync,
-    T::Protocol: DynAccept<W>,
-    W: 'static,
+    T: SendsProtocol + Clone + Sync + 'static,
+    T::Protocol: BoxedFromInto,
+    T::With: Send
 {
     fn dyn_send_boxed_msg_with(
         &self,
-        msg: BoxedMsg<W>,
-    ) -> BoxFuture<Result<(), DynSendError<BoxedMsg<W>>>> {
+        msg: BoxedMsg<Self::With>,
+    ) -> BoxFuture<Result<(), DynSendError<BoxedMsg<Self::With>>>> {
         Box::pin(async move {
             let (protocol, with) =
                 T::Protocol::try_from_boxed_msg(msg).map_err(DynSendError::NotAccepted)?;
 
-            self.send_protocol_with(protocol, with)
+            T::send_protocol_with(self, protocol, with)
                 .await
                 .map_err(|SendError((protocol, with))| {
                     DynSendError::Closed(protocol.into_boxed_msg(with))
@@ -55,12 +63,12 @@ where
 
     fn dyn_send_boxed_msg_blocking_with(
         &self,
-        msg: BoxedMsg<W>,
-    ) -> Result<(), DynSendError<BoxedMsg<W>>> {
+        msg: BoxedMsg<Self::With>,
+    ) -> Result<(), DynSendError<BoxedMsg<Self::With>>> {
         let (protocol, with) =
             T::Protocol::try_from_boxed_msg(msg).map_err(DynSendError::NotAccepted)?;
 
-        self.send_protocol_blocking_with(protocol, with)
+        T::send_protocol_blocking_with(self, protocol, with)
             .map_err(|SendError((protocol, with))| {
                 DynSendError::Closed(protocol.into_boxed_msg(with))
             })
@@ -68,12 +76,12 @@ where
 
     fn dyn_try_send_boxed_msg_with(
         &self,
-        msg: BoxedMsg<W>,
-    ) -> Result<(), DynTrySendError<BoxedMsg<W>>> {
+        msg: BoxedMsg<Self::With>,
+    ) -> Result<(), DynTrySendError<BoxedMsg<Self::With>>> {
         let (protocol, with) =
             T::Protocol::try_from_boxed_msg(msg).map_err(DynTrySendError::NotAccepted)?;
 
-        self.try_send_protocol_with(protocol, with)
+        T::try_send_protocol_with(self, protocol, with)
             .map_err(|e| match e {
                 TrySendError::Closed((protocol, with)) => {
                     DynTrySendError::Closed(protocol.into_boxed_msg(with))
@@ -87,17 +95,27 @@ where
     fn accepts_all(&self) -> &'static [TypeId] {
         T::Protocol::accepts_all()
     }
+
+    fn clone_boxed(&self) -> Box<dyn IsDynSender<With = Self::With>> {
+        Box::new(self.clone())
+    }
 }
 
-pub trait DynSendExt<W = ()>: DynSend<W> {
+impl<T> Clone for Box<dyn IsDynSender<With = T>> {
+    fn clone(&self) -> Self {
+        self.clone_boxed()
+    }
+}
+
+pub trait DynSendExt: IsDynSender {
     fn dyn_send_msg_with<M>(
         &self,
         msg: M,
-        with: W,
-    ) -> impl Future<Output = Result<(), DynSendError<(M, W)>>> + Send
+        with: Self::With,
+    ) -> impl Future<Output = Result<(), DynSendError<(M, Self::With)>>> + Send
     where
         M: Send + 'static,
-        W: Send + 'static,
+        Self::With: Send + 'static,
     {
         let fut = self.dyn_send_boxed_msg_with(BoxedMsg::new(msg, with));
         async {
@@ -108,10 +126,14 @@ pub trait DynSendExt<W = ()>: DynSend<W> {
         }
     }
 
-    fn dyn_send_msg_blocking_with<M>(&self, msg: M, with: W) -> Result<(), DynSendError<(M, W)>>
+    fn dyn_send_msg_blocking_with<M>(
+        &self,
+        msg: M,
+        with: Self::With,
+    ) -> Result<(), DynSendError<(M, Self::With)>>
     where
         M: Send + 'static,
-        W: Send + 'static,
+        Self::With: Send + 'static,
     {
         match self.dyn_send_boxed_msg_blocking_with(BoxedMsg::new(msg, with)) {
             Ok(()) => Ok(()),
@@ -119,10 +141,14 @@ pub trait DynSendExt<W = ()>: DynSend<W> {
         }
     }
 
-    fn dyn_try_send_msg_with<M>(&self, msg: M, with: W) -> Result<(), DynTrySendError<(M, W)>>
+    fn dyn_try_send_msg_with<M>(
+        &self,
+        msg: M,
+        with: Self::With,
+    ) -> Result<(), DynTrySendError<(M, Self::With)>>
     where
         M: Send + 'static,
-        W: Send + 'static,
+        Self::With: Send + 'static,
     {
         match self.dyn_try_send_boxed_msg_with(BoxedMsg::new(msg, with)) {
             Ok(()) => Ok(()),
@@ -134,7 +160,7 @@ pub trait DynSendExt<W = ()>: DynSend<W> {
         self.accepts_all().contains(&TypeId::of::<M>())
     }
 }
-impl<T, W> DynSendExt<W> for T where T: DynSend<W> {}
+impl<T> DynSendExt for T where T: IsDynSender {}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DynSendError<T> {

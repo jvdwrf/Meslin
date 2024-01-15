@@ -37,18 +37,35 @@ pub fn derive_protocol(input: DeriveInput) -> syn::Result<TokenStream> {
 
     Ok(quote! {
         #(
-            impl #impl_generics ::meslin::Accept<#variant_types> for #name #ty_generics #where_clause {
-                fn from_msg(msg: #variant_types) -> Self {
+            impl #impl_generics From<#variant_types> for #name #ty_generics #where_clause {
+                fn from(msg: #variant_types) -> Self {
                     Self::#variant_idents(msg)
                 }
+            }
 
-                fn try_into_msg(self) -> Result<#variant_types, Self> {
+            impl #impl_generics TryInto<#variant_types> for #name #ty_generics #where_clause {
+                type Error = Self;
+
+                fn try_into(self) -> Result<#variant_types, Self> {
                     match self {
                         Self::#variant_idents(msg) => Ok(msg),
                         _ => Err(self),
                     }
                 }
             }
+
+            // impl #impl_generics ::meslin::FromInto<#variant_types> for #name #ty_generics #where_clause {
+            //     fn from_msg(msg: #variant_types) -> Self {
+            //         Self::#variant_idents(msg)
+            //     }
+
+            //     fn try_into_msg(self) -> Result<#variant_types, Self> {
+            //         match self {
+            //             Self::#variant_idents(msg) => Ok(msg),
+            //             _ => Err(self),
+            //         }
+            //     }
+            // }
         )*
     })
 }

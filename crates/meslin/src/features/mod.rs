@@ -1,8 +1,14 @@
 #[cfg(feature = "request")]
-pub mod request;
+mod request;
+#[cfg(feature = "request")]
+pub use request::*;
 
 #[cfg(feature = "derive")]
-pub use meslin_derive::*;
+pub use {
+    derive_more::{From, TryInto},
+    meslin_derive::*,
+};
+// #[cfg(feature = "derive")]
 
 #[cfg(feature = "broadcast")]
 pub mod broadcast;

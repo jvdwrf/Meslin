@@ -1,11 +1,13 @@
 use crate::*;
-use tokio::sync::oneshot;
 
 #[derive(Debug)]
 pub struct Request<A, B> {
     pub msg: A,
     pub tx: oneshot::Sender<B>,
 }
+
+pub use oneshot::Receiver;
+pub use oneshot::Sender;
 
 impl<A, B> Request<A, B> {
     pub fn new(msg: A) -> (Self, oneshot::Receiver<B>) {

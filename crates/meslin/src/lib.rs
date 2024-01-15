@@ -5,7 +5,10 @@ mod message;
 mod protocol;
 mod sending;
 mod dynamic;
+mod errors;
 
+
+pub use errors::*;
 pub use features::*;
 pub use message::*;
 pub use protocol::*;

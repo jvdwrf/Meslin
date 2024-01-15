@@ -7,6 +7,8 @@ pub struct Sender<P, O: Ord> {
     sender: prio::Sender<P, O>,
 }
 
+pub use prio::Receiver;
+
 impl<P, O: Ord> Sender<P, O> {
     pub fn inner(&self) -> &prio::Sender<P, O> {
         &self.sender
@@ -26,6 +28,8 @@ impl<P, O: Ord> Sender<P, O> {
 }
 
 impl<P, O: Ord> IsSender for Sender<P, O> {
+    type With = O;
+
     fn is_closed(&self) -> bool {
         self.sender.is_closed()
     }
@@ -47,26 +51,26 @@ impl<P, O: Ord> IsSender for Sender<P, O> {
     }
 }
 
-impl<P: Send, O: Ord + Send> SendProtocol<O> for Sender<P, O> {
+impl<P: Send, O: Ord + Send> SendsProtocol for Sender<P, O> {
     type Protocol = P;
 
     async fn send_protocol_with(
-        &self,
+        this: &Self,
         protocol: Self::Protocol,
         with: O,
     ) -> Result<(), SendError<(Self::Protocol, O)>> {
-        self.sender
+        this.sender
             .send(protocol, with)
             .await
             .map_err(|e| SendError(e.0))
     }
 
     fn try_send_protocol_with(
-        &self,
+        this: &Self,
         protocol: Self::Protocol,
         with: O,
     ) -> Result<(), TrySendError<(Self::Protocol, O)>> {
-        self.sender.try_send(protocol, with).map_err(|e| match e {
+        this.sender.try_send(protocol, with).map_err(|e| match e {
             prio::TrySendError::Full(e) => TrySendError::Full(e),
             prio::TrySendError::Closed(e) => TrySendError::Closed(e),
         })

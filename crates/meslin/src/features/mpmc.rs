@@ -24,6 +24,8 @@ impl<P> Sender<P> {
 }
 
 impl<P> IsSender for Sender<P> {
+    type With = ();
+    
     fn is_closed(&self) -> bool {
         self.sender.is_disconnected()
     }
@@ -45,34 +47,34 @@ impl<P> IsSender for Sender<P> {
     }
 }
 
-impl<P: Send> SendProtocol for Sender<P> {
+impl<P: Send> SendsProtocol for Sender<P> {
     type Protocol = P;
 
     async fn send_protocol_with(
-        &self,
+        this: &Self,
         protocol: Self::Protocol,
         _with: (),
     ) -> Result<(), SendError<(Self::Protocol, ())>> {
-        self.sender
+        this.sender
             .send_async(protocol)
             .await
             .map_err(|e| SendError((e.0, ())))
     }
 
     fn send_protocol_blocking_with(
-        &self,
+        this: &Self,
         protocol: Self::Protocol,
         _with: (),
     ) -> Result<(), SendError<(Self::Protocol, ())>> {
-        self.sender.send(protocol).map_err(|e| SendError((e.0, ())))
+        this.sender.send(protocol).map_err(|e| SendError((e.0, ())))
     }
 
     fn try_send_protocol_with(
-        &self,
+        this: &Self,
         protocol: Self::Protocol,
         _with: (),
     ) -> Result<(), TrySendError<(Self::Protocol, ())>> {
-        self.sender.try_send(protocol).map_err(|e| match e {
+        this.sender.try_send(protocol).map_err(|e| match e {
             flume::TrySendError::Disconnected(protocol) => {
                 TrySendError::Closed((protocol, ()))
             }

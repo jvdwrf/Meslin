@@ -10,15 +10,17 @@ futures = { version = "0.3", features = ["executor"] }
 tokio = { version = "1", features = ["sync"], optional = true }
 async-priority-channel = { version = "0.2", optional = true }
 flume = { version = "0.11", optional = true }
+oneshot = { version = "0.1", optional = true }
 meslin-derive = { version = "0.1", path = "../meslin-derive", optional = true }
+derive_more = { version = "1.0.0-beta.6", default-features = false, optional = true, features = ["from", "try_into"] }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }
 
 [features]
-derive = ["dep:meslin-derive"]
-mpmc = ["flume"]
-request = ["dep:tokio"]
+derive = ["dep:meslin-derive", "dep:derive_more"]
+mpmc = ["dep:flume"]
+request = ["dep:oneshot"]
 broadcast = ["dep:tokio"]
 watch = ["dep:tokio"]
 priority = ["dep:async-priority-channel"]

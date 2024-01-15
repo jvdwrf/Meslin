@@ -7,6 +7,8 @@ pub struct Sender<P> {
     sender: watch::Sender<P>,
 }
 
+pub use watch::Receiver;
+
 impl<P> Sender<P> {
     pub fn inner(&self) -> &watch::Sender<P> {
         &self.sender
@@ -26,6 +28,8 @@ impl<P> Sender<P> {
 }
 
 impl<P> IsSender for Sender<P> {
+    type With = ();
+
     fn is_closed(&self) -> bool {
         self.sender.is_closed()
     }
@@ -47,25 +51,25 @@ impl<P> IsSender for Sender<P> {
     }
 }
 
-impl<P: Clone + Send + Sync> SendProtocol for Sender<P> {
+impl<P: Clone + Send + Sync> SendsProtocol for Sender<P> {
     type Protocol = P;
 
     fn try_send_protocol_with(
-        &self,
+        this: &Self,
         protocol: Self::Protocol,
         _with: (),
     ) -> Result<(), TrySendError<(P, ())>> {
-        self.sender
+        this.sender
             .send(protocol)
             .map_err(|e| TrySendError::Closed((e.0, ())))
     }
 
     async fn send_protocol_with(
-        &self,
+        this: &Self,
         protocol: Self::Protocol,
         _with: (),
     ) -> Result<(), SendError<(Self::Protocol, ())>> {
-        self.sender.send(protocol).map_err(|e| SendError((e.0, ())))
+        this.sender.send(protocol).map_err(|e| SendError((e.0, ())))
     }
 }
 
