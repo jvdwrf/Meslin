@@ -1,6 +1,6 @@
 use meslin::{
-    mpmc, priority, DynFromInto, DynSender, DynSendsExt, From, MappedWithSender, SendsExt, Set,
-    TryInto, WithValueSender,
+    mpmc, priority, DynFromInto, DynSender, DynSendsExt, From, MappedWithSender, SendsExt, TryInto,
+    WithValueSender,
 };
 
 #[derive(Debug, From, TryInto, DynFromInto)]
