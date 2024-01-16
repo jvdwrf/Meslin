@@ -11,7 +11,7 @@ impl<T> SendError<T> {
         self.0
     }
 
-    pub fn map<T2>(self, fun: impl FnOnce(T) -> T2) -> SendError<T2> {
+    pub(crate) fn map<T2>(self, fun: impl FnOnce(T) -> T2) -> SendError<T2> {
         SendError(fun(self.0))
     }
 }

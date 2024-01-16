@@ -2,9 +2,7 @@ use crate::*;
 use core::future::Future;
 use std::marker::PhantomData;
 
-/// A wrapper around a sender, that always sends a default `with` value.
-///
-/// The mapping is from `W` to `T::With`.
+/// A wrapper around a sender, which provides a default `with`-value.
 pub struct WithValueSender<T: IsSender> {
     sender: T,
     with: T::With,
@@ -101,6 +99,8 @@ where
     }
 }
 
+/// A wrapper around a sender, which provides a mapping between the `with`-value of the sender and
+/// a custom `with`-value.
 pub struct MappedWithSender<T: IsSender, W> {
     sender: T,
     f1: fn(W) -> T::With,

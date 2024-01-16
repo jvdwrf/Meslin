@@ -12,6 +12,7 @@ pub use accept::*;
 mod sender;
 pub use sender::*;
 
+/// A boxed message with a `with` value, used for dynamic dispatch.
 pub struct BoxedMsg<W = ()> {
     w: PhantomData<fn() -> W>,
     inner: AnyBox,

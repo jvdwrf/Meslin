@@ -1,10 +1,7 @@
 use crate::*;
 use std::future::Future;
 
-/// Any sender, whether dynamic or not, must implement this trait. It defines some basic common
-/// methods for all senders, and defines the type [`IsSender::With`].
-///
-/// [`IsSender::With`] is the value that must be passed along when sending a message.
+/// Trait that must be implemented by all senders.
 #[allow(clippy::len_without_is_empty)]
 pub trait IsSender {
     /// The value that must be passed along when sending a message.
@@ -26,8 +23,7 @@ pub trait IsSender {
     fn sender_count(&self) -> usize;
 }
 
-/// A supertrait of [`IsSender`], that additionally defines the protocol that can be sent to
-/// this sender, and how to send it.
+/// A supertrait of [`IsSender`], that defines how a protocol can be sent to the sender.
 ///
 /// When this trait is implemented, [`Sends<M>`] is automatically implemented as well if
 /// [`SendsProtocol::Protocol`] implements `From<M>` and `TryInto<M>`.
@@ -41,6 +37,12 @@ pub trait SendsProtocol: IsSender {
         with: Self::With,
     ) -> impl Future<Output = Result<(), SendError<(Self::Protocol, Self::With)>>> + Send;
 
+    fn try_send_protocol_with(
+        this: &Self,
+        protocol: Self::Protocol,
+        with: Self::With,
+    ) -> Result<(), TrySendError<(Self::Protocol, Self::With)>>;
+
     fn send_protocol_blocking_with(
         this: &Self,
         protocol: Self::Protocol,
@@ -48,15 +50,9 @@ pub trait SendsProtocol: IsSender {
     ) -> Result<(), SendError<(Self::Protocol, Self::With)>> {
         futures::executor::block_on(Self::send_protocol_with(this, protocol, with))
     }
-
-    fn try_send_protocol_with(
-        this: &Self,
-        protocol: Self::Protocol,
-        with: Self::With,
-    ) -> Result<(), TrySendError<(Self::Protocol, Self::With)>>;
 }
 
-/// This trait defines when a message `M` can be sent to the sender.
+/// Defines when a message `M` can be sent to the sender.
 ///
 /// Automatically implemented when [`SendsProtocol`] is implemented.
 ///
@@ -124,6 +120,9 @@ where
 
 /// Extension methods for [`IsSender`] / [`Sends<M>`].
 pub trait SendsExt: IsSender {
+    /// Send a message with a custom value, waiting asynchronously until space becomes available.
+    /// 
+    /// See the crate [docs](crate) under `#Send methods` for more information.
     fn send_msg_with<M>(
         &self,
         msg: M,
@@ -134,6 +133,10 @@ pub trait SendsExt: IsSender {
     {
         <Self as Sends<M>>::send_msg_with(self, msg, with)
     }
+
+    /// Send a message with a custom value, blocking the current thread until space becomes available.
+    /// 
+    /// See the crate [docs](crate) under `#Send methods` for more information.
     fn send_msg_blocking_with<M>(
         &self,
         msg: M,
@@ -144,6 +147,10 @@ pub trait SendsExt: IsSender {
     {
         <Self as Sends<M>>::send_msg_blocking_with(self, msg, with)
     }
+
+    /// Send a message with a custom value, returning an error if space is not available.
+    /// 
+    /// See the crate [docs](crate) under `#Send methods` for more information.
     fn try_send_msg_with<M>(
         &self,
         msg: M,
@@ -154,6 +161,10 @@ pub trait SendsExt: IsSender {
     {
         <Self as Sends<M>>::try_send_msg_with(self, msg, with)
     }
+
+    /// Send a message using a default value, waiting asynchronously until space becomes available.
+    /// 
+    /// See the crate [docs](crate) under `#Send methods` for more information.
     fn send_msg<M: Message>(&self, msg: M) -> impl Future<Output = Result<(), SendError<M>>> + Send
     where
         Self: Sends<M>,
@@ -162,6 +173,10 @@ pub trait SendsExt: IsSender {
         let fut = self.send_msg_with(msg, Default::default());
         async { fut.await.map_err(|e| e.map(|(t, _)| t)) }
     }
+
+    /// Send a message using a default value, blocking the current thread until space becomes available.
+    /// 
+    /// See the crate [docs](crate) under `#Send methods` for more information.
     fn send_msg_blocking<M: Message>(&self, msg: M) -> Result<(), SendError<M>>
     where
         Self: Sends<M>,
@@ -170,6 +185,10 @@ pub trait SendsExt: IsSender {
         self.send_msg_blocking_with(msg, Default::default())
             .map_err(|e| e.map(|(t, _)| t))
     }
+
+    /// Send a message using a default value, returning an error if space is not available.
+    /// 
+    /// See the crate [docs](crate) under `#Send methods` for more information.
     fn try_send_msg<M: Message>(&self, msg: M) -> Result<(), TrySendError<M>>
     where
         Self: Sends<M>,
@@ -179,6 +198,9 @@ pub trait SendsExt: IsSender {
             .map_err(|e| e.map(|(t, _)| t))
     }
 
+    /// Send a message with a custom value, waiting asynchronously until space becomes available.
+    /// 
+    /// See the crate [docs](crate) under `#Send methods` for more information.
     fn send_with<M: Message>(
         &self,
         msg: impl Into<M::Input>,
@@ -197,6 +219,10 @@ pub trait SendsExt: IsSender {
             }
         }
     }
+
+    /// Send a message with a custom value, blocking the current thread until space becomes available.
+    /// 
+    /// See the crate [docs](crate) under `#Send methods` for more information.
     fn send_blocking_with<M: Message>(
         &self,
         msg: impl Into<M::Input>,
@@ -211,6 +237,10 @@ pub trait SendsExt: IsSender {
             Err(e) => Err(e.map(|(t, w)| (t.cancel(output), w))),
         }
     }
+
+    /// Send a message with a custom value, returning an error if space is not available.
+    /// 
+    /// See the crate [docs](crate) under `#Send methods` for more information.
     fn try_send_with<M: Message>(
         &self,
         msg: impl Into<M::Input>,
@@ -225,6 +255,10 @@ pub trait SendsExt: IsSender {
             Err(e) => Err(e.map(|(t, w)| (t.cancel(output), w))),
         }
     }
+
+    /// Send a message using a default value, waiting asynchronously until space becomes available.
+    /// 
+    /// See the crate [docs](crate) under `#Send methods` for more information.
     fn send<M: Message>(
         &self,
         msg: impl Into<M::Input>,
@@ -236,6 +270,10 @@ pub trait SendsExt: IsSender {
         let fut = self.send_with(msg, Default::default());
         async { fut.await.map_err(|e| e.map(|(t, _)| t)) }
     }
+
+    /// Send a message using a default value, blocking the current thread until space becomes available.
+    /// 
+    /// See the crate [docs](crate) under `#Send methods` for more information.
     fn send_blocking<M: Message>(
         &self,
         msg: impl Into<M::Input>,
@@ -247,6 +285,10 @@ pub trait SendsExt: IsSender {
         self.send_blocking_with(msg, Default::default())
             .map_err(|e| e.map(|(t, _)| t))
     }
+
+    /// Send a message using a default value, returning an error if space is not available.
+    /// 
+    /// See the crate [docs](crate) under `#Send methods` for more information.
     fn try_send<M: Message>(
         &self,
         msg: impl Into<M::Input>,
@@ -259,6 +301,10 @@ pub trait SendsExt: IsSender {
             .map_err(|e| e.map(|(t, _)| t))
     }
 
+    /// Send a message with a custom value, waiting asynchronously until space becomes available, and then
+    /// await the [`Message::Output`].
+    /// 
+    /// See the crate [docs](crate) under `#Send methods` for more information.
     fn request_with<M: Message>(
         &self,
         msg: impl Into<M::Input>,
@@ -279,6 +325,11 @@ pub trait SendsExt: IsSender {
             rx.await.map_err(RequestError::NoReply)
         }
     }
+
+    /// Send a message using a default value, blocking the current thread until space becomes available, and then
+    /// await the [`Message::Output`].
+    /// 
+    /// See the crate [docs](crate) under `#Send methods` for more information.
     fn request<M: Message>(
         &self,
         msg: impl Into<M::Input>,
@@ -308,6 +359,7 @@ impl<T: ?Sized> SendsExt for T where T: IsSender {}
 // ResultFuture
 //-------------------------------------
 
+/// A future that resolves to a [`Result`].
 pub trait ResultFuture: Future<Output = Result<Self::Ok, Self::Error>> {
     type Error;
     type Ok;

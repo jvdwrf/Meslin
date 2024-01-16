@@ -1,2 +1,3 @@
 [workspace]
 members = ["meslin", "meslin-derive"]
+resolver = "2"

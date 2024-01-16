@@ -6,20 +6,46 @@ use std::{
     marker::PhantomData,
 };
 
+/// A wrapper around a [`Box<dyn DynSends>`](DynSends) that allows for type-checked conversions.
+///
+/// Any sender can be converted into a `DynSender`, as long as the protocol it sends implements
+/// [`DynFromInto`] and marker traits [`Accepts<M>`]. This conversion is type-checked, so that
+/// it is impossible to create [`DynSender`]s that send messages not accepted by the protocol.
+/// 
+/// ## Sending
+/// A [`DynSender`] automatically implements [`Sends<M>`] for all messages `M` accepted by the
+/// protocol. This means that you can just use a [`DynSender`] instead of a statically typed sender in
+/// most cases. If you need to send a message that is not accepted by the protocol, you can use the
+/// `dyn_{...}`-send methods, which return an error if the message is not accepted.
+/// 
+/// ## Generics
+/// The parameter `A` specifies the accepted messages of the dynamic sender. It can be specified
+/// using the [`macro@Accepts`] macro:
+/// - `DynSender<Accepts![]>`
+/// - `DynSender<Accepts![Msg1, Msg2]>`
+///
+/// ## Unchecked methods
+/// The unchecked methods, **not** marked unsafe, allow creating of `DynSender`s that send messages
+/// not accepted by the protocol. Only use these methods if you are sure that the protocol accepts
+/// the messages you send. If you are not sure, use the `try_transform` methods instead, which
+/// return an error if the protocol does not accept the messages.
 pub struct DynSender<A: ?Sized, W = ()> {
     sender: BoxedSender<W>,
     t: PhantomData<fn() -> A>,
 }
 
 impl<A: ?Sized, W> DynSender<A, W> {
+    /// Create a new `DynSender` from a statically typed sender.
     pub fn new<S>(sender: S) -> Self
     where
         S: SendsProtocol + DynSends<With = W>,
-        A: TransformFrom<S::Protocol>,
+        A: AcceptsSubsetOf<S::Protocol>,
     {
         Self::new_unchecked(sender)
     }
 
+    /// Create a new `DynSender` from a statically typed sender, without checking if the protocol
+    /// accepts the messages.
     pub fn new_unchecked<S>(sender: S) -> Self
     where
         S: DynSends<With = W>,
@@ -27,13 +53,16 @@ impl<A: ?Sized, W> DynSender<A, W> {
         Self::from_boxed_unchecked(Box::new(sender))
     }
 
+    /// Transform the `DynSender` into a `DynSender` that accepts a subset of the messages.
     pub fn transform<A2: ?Sized>(self) -> DynSender<A2, W>
     where
-        A2: TransformFrom<A>,
+        A2: AcceptsSubsetOf<A>,
     {
         DynSender::from_boxed_unchecked(self.sender)
     }
 
+    /// Attempt to transform the `DynSender` into a `DynSender` that accepts a subset of the messages,
+    /// failing if the protocol does not accept the messages.
     pub fn try_transform<A2: ?Sized>(self) -> Result<DynSender<A2, W>, Self>
     where
         A2: AcceptsAll,
@@ -50,10 +79,14 @@ impl<A: ?Sized, W> DynSender<A, W> {
         }
     }
 
+    /// Transform the `DynSender` into a `DynSender` that accepts a subset of the messages, without
+    /// checking if the protocol accepts the messages.
     pub fn transform_unchecked<T2: ?Sized>(self) -> DynSender<T2, W> {
         DynSender::from_boxed_unchecked(self.sender)
     }
 
+    /// Convert a [`Box<dyn DynSends>`](DynSends) into a `DynSender`, without checking if the protocol
+    /// accepts the messages.
     pub fn from_boxed_unchecked(sender: BoxedSender<W>) -> Self {
         Self {
             sender,
@@ -61,13 +94,15 @@ impl<A: ?Sized, W> DynSender<A, W> {
         }
     }
 
+    /// Convert into a [`Box<dyn DynSends>`](DynSends).
     pub fn into_boxed_sender(self) -> BoxedSender<W> {
         self.sender
     }
 
+    /// Downcast the inner sender to a statically typed sender.
     pub fn downcast_ref<S>(&self) -> Option<&S>
     where
-        S: DynSends<With = W>,
+        S: IsSender<With = W> + 'static,
         W: 'static,
     {
         self.sender.as_any().downcast_ref::<S>()

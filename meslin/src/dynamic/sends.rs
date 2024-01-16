@@ -23,12 +23,9 @@ pub trait DynSends: IsSender + Send + 'static {
     fn accepts_all(&self) -> &'static [TypeId];
 
     fn clone_boxed(&self) -> BoxedSender<Self::With>;
+
     fn as_any(&self) -> &dyn Any;
 }
-
-//-------------------------------------
-// Implement for T
-//-------------------------------------
 
 impl<T> DynSends for T
 where
@@ -91,10 +88,6 @@ where
         self
     }
 }
-
-//-------------------------------------
-// Implement for BoxSender
-//-------------------------------------
 
 impl<W, T> From<T> for BoxedSender<W>
 where

@@ -1,16 +1,9 @@
 use crate::*;
 use std::any::TypeId;
 
-pub trait Accepts<M> {}
-
-pub trait AcceptsAll {
-    fn accepts_all() -> &'static [TypeId];
-}
-
-/// A variant of [`DynFromInto`] that can be used for dynamic dispatch, meaning that
-/// at runtime, [`Message`](crate)s are checked for acceptance.
+/// Trait that allows usage of dynamic senders for a protocol
 ///
-/// This can be derived on an enum using [`macro@DynFromInto`]
+/// This is usually derived on an enum using [`macro@DynFromInto`]
 pub trait DynFromInto: AcceptsAll + Sized {
     /// Attempt to convert a bxed [`Message`] into the full protocol (enum),
     /// failing if the message is not accepted.
@@ -21,16 +14,33 @@ pub trait DynFromInto: AcceptsAll + Sized {
     fn into_boxed_msg<W: Send + 'static>(self, with: W) -> BoxedMsg<W>;
 }
 
-pub trait TransformFrom<T: ?Sized> {}
+/// Marker trait that defines which messages are dynamically accepted by a protocol.
+///
+/// This is usually derived on an enum using [`macro@DynFromInto`]
+pub trait Accepts<M> {}
 
-/// Macro that expands as follows:
+/// Trait that specifies a list of messages accepted by a protocol.
+///
+/// This is usually derived on an enum using [`macro@DynFromInto`]
+pub trait AcceptsAll {
+    fn accepts_all() -> &'static [TypeId];
+}
+
+/// Marker trait that indicates a subset of T is accepted.
+pub trait AcceptsSubsetOf<T: ?Sized> {}
+
+/// Macro that allows for dynamic specification of accepted messages.
+/// 
+/// It expands as follows:
 /// - `Accepts![]` == `dyn AcceptsNone`
 /// - `Accepts![T1]` == `dyn AcceptsOne<T1>`
 /// - `Accepts![T1, T2]` == `dyn AcceptsTwo<T1, T2>`
 /// - etc.
 ///
-/// This macro can be used as `T` in [`DynSender<T>`], for example
-/// `DynSender<Accepts![u32, u64]>`.
+/// Some usage examples:
+/// - `DynSender<Accepts![u32, u64]>`
+/// - `sender.into_dyn::<Accepts![u32, u64]>()`
+/// - `dyn_sender.transform::<Accepts![u32, u64]>()`
 #[macro_export]
 macro_rules! Accepts {
     ($(,)?) => {
@@ -69,6 +79,7 @@ macro_rules! Accepts {
 }
 
 pub mod marker {
+    //! Marker traits for dynamic protocols
     use crate::*;
     use std::{any::TypeId, sync::OnceLock};
 
@@ -77,13 +88,17 @@ pub mod marker {
             $n:literal $accepts:ident<$($gen:ident),*> $(:)? $($prev_accept:path),*;
         )*) => {
             $(
+                // Create the marker-traits
+                /// Marker trait indicating which messages are accepted by a protocol.
+                /// 
+                /// Use the [`macro@Accepts`] macro instead of this.
                 pub trait $accepts<$($gen),*>: $($prev_accept +)* {}
 
                 // Make the marker-traits auto-traits.
                 impl<$($gen,)* S: ?Sized> $accepts<$($gen),*> for S where S: $($prev_accept +)* {}
 
                 // And implement the correct FromSpec implementations
-                impl<$($gen,)* S: ?Sized> TransformFrom<S> for crate::Accepts!($($gen,)*)
+                impl<$($gen,)* S: ?Sized> AcceptsSubsetOf<S> for crate::Accepts!($($gen,)*)
                 where
                     S: $accepts<$($gen),*>
                 {}

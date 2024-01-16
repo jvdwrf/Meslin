@@ -5,7 +5,7 @@ use std::{
     sync::Arc,
 };
 
-/// All messages that are sent through a channel must implement this trait.
+/// Trait that defines how a message is created and canceled.
 ///
 /// It defines two types: `Input` and `Output`:
 /// - [`Message::Input`] is the type that is converted into the message.
@@ -36,8 +36,8 @@ pub trait Message: Sized {
 }
 
 /// A simple wrapper for any type that does not implement [`Message`].
-/// This is useful for sending types that are not owned by the sender.
-///
+/// 
+/// This is useful for sending types that are not owned by the sender, since 
 /// [`Msg<T>`] implements [`Message`] for any type `T`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Msg<T>(pub T);
