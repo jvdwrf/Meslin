@@ -26,11 +26,10 @@ pub trait DynSendsExt: DynSends + Sized {
         DynSender::new_unchecked(self)
     }
 
-    fn with<W>(self, with: Self::With) -> WithValueSender<Self, W>
+    fn with(self, with: Self::With) -> WithValueSender<Self>
     where
         Self: SendsProtocol,
         Self::With: Clone,
-        W: Send,
     {
         WithValueSender::new(self, with)
     }

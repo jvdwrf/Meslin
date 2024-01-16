@@ -46,7 +46,7 @@ async fn main() {
     // Downcast the senders back to their original types
     let _sender1 = senders[0].downcast_ref::<mpmc::Sender<P1>>().unwrap();
     let _sender2 = senders[1]
-        .downcast_ref::<WithValueSender<priority::Sender<P2, u32>, ()>>()
+        .downcast_ref::<WithValueSender<priority::Sender<P2, u32>>>()
         .unwrap();
     let _sender3 = senders[2]
         .downcast_ref::<MappedWithSender<priority::Sender<P2, u32>, ()>>()

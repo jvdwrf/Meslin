@@ -7,10 +7,10 @@ pub trait AcceptsAll {
     fn accepts_all() -> &'static [TypeId];
 }
 
-/// A variant of [`ProtocolFor`] that can be used for dynamic dispatch, meaning that
+/// A variant of [`DynFromInto`] that can be used for dynamic dispatch, meaning that
 /// at runtime, [`Message`](crate)s are checked for acceptance.
 ///
-/// This can be derived on an enum using [`macro@DynProtocol`]
+/// This can be derived on an enum using [`macro@DynFromInto`]
 pub trait DynFromInto: AcceptsAll + Sized {
     /// Attempt to convert a bxed [`Message`] into the full protocol (enum),
     /// failing if the message is not accepted.

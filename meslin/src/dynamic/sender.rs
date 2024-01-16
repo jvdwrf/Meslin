@@ -6,8 +6,6 @@ use std::{
     marker::PhantomData,
 };
 
-use super::wrappers::WithValueSender;
-
 pub struct DynSender<A: ?Sized, W = ()> {
     sender: BoxedSender<W>,
     t: PhantomData<fn() -> A>,
@@ -22,33 +20,11 @@ impl<A: ?Sized, W> DynSender<A, W> {
         Self::new_unchecked(sender)
     }
 
-    pub fn new_with<S>(sender: S, with: S::With) -> Self
-    where
-        S: SendsProtocol + DynSends + Sync + Clone,
-        S::With: Clone + Send + Sync,
-        S::Protocol: DynFromInto,
-        W: Send + 'static,
-        A: TransformFrom<S::Protocol>,
-    {
-        Self::new_with_unchecked(sender, with)
-    }
-
     pub fn new_unchecked<S>(sender: S) -> Self
     where
         S: DynSends<With = W>,
     {
         Self::from_boxed_unchecked(Box::new(sender))
-    }
-
-    pub fn new_with_unchecked<S>(sender: S, with: S::With) -> Self
-    where
-        S: SendsProtocol + DynSends + Sync + Clone,
-        S::With: Clone + Send + Sync,
-        S::Protocol: DynFromInto,
-        W: Send + 'static,
-    {
-        let mapped_sender = WithValueSender::<_, W>::new(sender, with);
-        Self::new_unchecked(mapped_sender)
     }
 
     pub fn transform<A2: ?Sized>(self) -> DynSender<A2, W>

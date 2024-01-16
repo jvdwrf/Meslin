@@ -5,13 +5,12 @@ use std::marker::PhantomData;
 /// A wrapper around a sender, that always sends a default `with` value.
 ///
 /// The mapping is from `W` to `T::With`.
-pub struct WithValueSender<T: IsSender, W = ()> {
+pub struct WithValueSender<T: IsSender> {
     sender: T,
     with: T::With,
-    _marker: PhantomData<fn() -> W>,
 }
 
-impl<T, W> Clone for WithValueSender<T, W>
+impl<T> Clone for WithValueSender<T>
 where
     T: Clone + IsSender,
     T::With: Clone,
@@ -20,18 +19,13 @@ where
         Self {
             sender: self.sender.clone(),
             with: self.with.clone(),
-            _marker: PhantomData,
         }
     }
 }
 
-impl<T: IsSender, W> WithValueSender<T, W> {
+impl<T: IsSender> WithValueSender<T> {
     pub fn new(sender: T, with: T::With) -> Self {
-        Self {
-            sender,
-            with,
-            _marker: PhantomData,
-        }
+        Self { sender, with }
     }
 
     pub fn into_inner(self) -> (T, T::With) {
@@ -47,11 +41,11 @@ impl<T: IsSender, W> WithValueSender<T, W> {
     }
 }
 
-impl<T, W> IsSender for WithValueSender<T, W>
+impl<T> IsSender for WithValueSender<T>
 where
     T: IsSender,
 {
-    type With = W;
+    type With = ();
 
     fn is_closed(&self) -> bool {
         self.sender.is_closed()
@@ -74,21 +68,20 @@ where
     }
 }
 
-impl<T, W> SendsProtocol for WithValueSender<T, W>
+impl<T> SendsProtocol for WithValueSender<T>
 where
     T: SendsProtocol,
     T::With: Clone,
-    W: Send,
 {
     type Protocol = T::Protocol;
 
     fn send_protocol_with(
         this: &Self,
         protocol: Self::Protocol,
-        with: W,
+        with: (),
     ) -> impl Future<Output = Result<(), SendError<(Self::Protocol, Self::With)>>> + Send {
         let fut = T::send_protocol_with(&this.sender, protocol, this.with.clone());
-        async {
+        async move {
             match fut.await {
                 Ok(()) => Ok(()),
                 Err(e) => Err(e.map(|(protocol, _)| (protocol, with))),
@@ -99,7 +92,7 @@ where
     fn try_send_protocol_with(
         this: &Self,
         protocol: Self::Protocol,
-        with: W,
+        with: (),
     ) -> Result<(), TrySendError<(Self::Protocol, Self::With)>> {
         match T::try_send_protocol_with(&this.sender, protocol, this.with.clone()) {
             Ok(()) => Ok(()),

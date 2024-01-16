@@ -232,7 +232,6 @@ pub trait SendsExt: IsSender {
     where
         Self: Sends<M>,
         Self::With: Default,
-        M::Output: Send,
     {
         let fut = self.send_with(msg, Default::default());
         async { fut.await.map_err(|e| e.map(|(t, _)| t)) }
@@ -272,7 +271,7 @@ pub trait SendsExt: IsSender {
     > + Send
     where
         Self: Sends<M>,
-        M::Output: ResultFuture + Send,
+        M::Output: ResultFuture,
     {
         let fut = self.send_with(msg, with);
         async {
@@ -292,7 +291,7 @@ pub trait SendsExt: IsSender {
     where
         Self: Sends<M>,
         Self::With: Default,
-        M::Output: ResultFuture + Send,
+        M::Output: ResultFuture,
     {
         let fut = self.request_with(msg, Default::default());
         async {

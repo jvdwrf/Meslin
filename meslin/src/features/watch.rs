@@ -1,29 +1,29 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, sync::Arc};
 
 use crate::*;
 use tokio::sync::watch;
 
 /// Wrapper around [`tokio::sync::watch::Sender`].
 pub struct Sender<P> {
-    sender: watch::Sender<P>,
+    sender: Arc<watch::Sender<P>>,
 }
 
 pub use watch::Receiver;
 
 impl<P> Sender<P> {
-    pub fn inner(&self) -> &watch::Sender<P> {
+    pub fn inner(&self) -> &Arc<watch::Sender<P>> {
         &self.sender
     }
 
-    pub fn inner_mut(&mut self) -> &mut watch::Sender<P> {
+    pub fn inner_mut(&mut self) -> &mut Arc<watch::Sender<P>> {
         &mut self.sender
     }
 
-    pub fn into_inner(self) -> watch::Sender<P> {
+    pub fn into_inner(self) -> Arc<watch::Sender<P>> {
         self.sender
     }
 
-    pub fn from_inner(sender: watch::Sender<P>) -> Self {
+    pub fn from_inner(sender: Arc<watch::Sender<P>>) -> Self {
         Self { sender }
     }
 }
@@ -82,7 +82,20 @@ impl<P: Debug> Debug for Sender<P> {
     }
 }
 
+impl<P> Clone for Sender<P> {
+    fn clone(&self) -> Self {
+        Self {
+            sender: self.sender.clone(),
+        }
+    }
+}
+
 pub fn channel<P>(init: P) -> (Sender<P>, watch::Receiver<P>) {
     let (sender, receiver) = watch::channel::<P>(init);
-    (Sender { sender }, receiver)
+    (
+        Sender {
+            sender: Arc::new(sender),
+        },
+        receiver,
+    )
 }

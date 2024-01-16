@@ -22,7 +22,7 @@ pub trait Message: Sized {
     type Input;
 
     /// The type that is returned when the message is sent.
-    type Output;
+    type Output: Send;
 
     /// Create a message from the given input.
     ///
