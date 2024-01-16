@@ -1,5 +1,5 @@
 use proc_macro2::TokenStream;
-use syn::{Data, DeriveInput, Fields};
+use syn::DeriveInput;
 
 pub fn derive(input: DeriveInput) -> syn::Result<TokenStream> {
     let name = &input.ident;

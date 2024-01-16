@@ -1,6 +1,6 @@
 use meslin::{
-    mpmc, priority, Accepts, DynFromInto, DynSender, DynSendsExt, From, SendsExt, TryInto,
-    WithValueSender,
+    mpmc, priority, Accepts, DynFromInto, DynSender, DynSendsExt, From, MappedWithSender, SendsExt,
+    TryInto, WithValueSender,
 };
 
 #[derive(Debug, From, TryInto, DynFromInto)]
@@ -48,5 +48,7 @@ async fn main() {
     let _sender2 = senders[1]
         .downcast_ref::<WithValueSender<priority::Sender<P2, u32>, ()>>()
         .unwrap();
-    // let _sender3 = senders[2].downcast_ref::<???>().unwrap(); -> Unnameable type
+    let _sender3 = senders[2]
+        .downcast_ref::<MappedWithSender<priority::Sender<P2, u32>, ()>>()
+        .unwrap();
 }

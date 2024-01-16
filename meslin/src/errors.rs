@@ -16,26 +16,6 @@ impl<T> SendError<T> {
     }
 }
 
-impl<T, W> SendError<(T, W)> {
-    pub(crate) fn map_first(self) -> SendError<T> {
-        SendError(self.0 .0)
-    }
-
-    pub(crate) fn map_into_msg_unwrap<M2>(self) -> SendError<(M2, W)>
-    where
-        T: TryInto<M2>,
-    {
-        SendError((self.0 .0.try_into().unwrap_silent(), self.0 .1))
-    }
-
-    pub(crate) fn map_cancel_first(self, output: T::Output) -> SendError<(T::Input, W)>
-    where
-        T: Message,
-    {
-        SendError((self.0 .0.cancel(output), self.0 .1))
-    }
-}
-
 /// Error that is returned when a channel is closed or full.
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Error)]
 pub enum TrySendError<T> {
@@ -57,35 +37,6 @@ impl<T> TrySendError<T> {
         match self {
             Self::Closed(t) => TrySendError::Closed(fun(t)),
             Self::Full(t) => TrySendError::Full(fun(t)),
-        }
-    }
-}
-
-impl<T, W> TrySendError<(T, W)> {
-    pub(crate) fn map_into_first(self) -> TrySendError<T> {
-        match self {
-            Self::Closed(t) => TrySendError::Closed(t.0),
-            Self::Full(t) => TrySendError::Full(t.0),
-        }
-    }
-
-    pub(crate) fn map_cancel_first(self, output: T::Output) -> TrySendError<(T::Input, W)>
-    where
-        T: Message,
-    {
-        match self {
-            Self::Closed(t) => TrySendError::Closed((t.0.cancel(output), t.1)),
-            Self::Full(t) => TrySendError::Full((t.0.cancel(output), t.1)),
-        }
-    }
-
-    pub(crate) fn map_into_msg_first_unwrap<M>(self) -> TrySendError<(M, W)>
-    where
-        T: TryInto<M>,
-    {
-        match self {
-            Self::Closed(t) => TrySendError::Closed((t.0.try_into().unwrap_silent(), t.1)),
-            Self::Full(t) => TrySendError::Full((t.0.try_into().unwrap_silent(), t.1)),
         }
     }
 }
@@ -122,41 +73,10 @@ impl<T> DynSendError<T> {
         }
     }
 
-    fn map<U>(self, f: impl FnOnce(T) -> U) -> DynSendError<U> {
+    pub(crate) fn map<U>(self, f: impl FnOnce(T) -> U) -> DynSendError<U> {
         match self {
             Self::NotAccepted(t) => DynSendError::NotAccepted(f(t)),
             Self::Closed(t) => DynSendError::Closed(f(t)),
-        }
-    }
-}
-
-impl<T, W> DynSendError<(T, W)> {
-    pub(crate) fn map_first(self) -> DynSendError<T> {
-        match self {
-            Self::NotAccepted(t) => DynSendError::NotAccepted(t.0),
-            Self::Closed(t) => DynSendError::Closed(t.0),
-        }
-    }
-
-    pub(crate) fn map_into_msg_unwrap<M2>(self) -> DynSendError<(M2, W)>
-    where
-        T: TryInto<M2>,
-    {
-        match self {
-            Self::NotAccepted(t) => {
-                DynSendError::NotAccepted((t.0.try_into().unwrap_silent(), t.1))
-            }
-            Self::Closed(t) => DynSendError::Closed((t.0.try_into().unwrap_silent(), t.1)),
-        }
-    }
-
-    pub(crate) fn map_cancel_first(self, output: T::Output) -> DynSendError<(T::Input, W)>
-    where
-        T: Message,
-    {
-        match self {
-            Self::NotAccepted(t) => DynSendError::NotAccepted((t.0.cancel(output), t.1)),
-            Self::Closed(t) => DynSendError::Closed((t.0.cancel(output), t.1)),
         }
     }
 }
@@ -202,32 +122,11 @@ impl<T> DynTrySendError<T> {
         }
     }
 
-    fn map<U>(self, f: impl FnOnce(T) -> U) -> DynTrySendError<U> {
+    pub(crate) fn map<U>(self, f: impl FnOnce(T) -> U) -> DynTrySendError<U> {
         match self {
             Self::NotAccepted(t) => DynTrySendError::NotAccepted(f(t)),
             Self::Closed(t) => DynTrySendError::Closed(f(t)),
             Self::Full(t) => DynTrySendError::Full(f(t)),
-        }
-    }
-}
-
-impl<T, W> DynTrySendError<(T, W)> {
-    pub(crate) fn map_first(self) -> DynTrySendError<T> {
-        match self {
-            Self::NotAccepted(t) => DynTrySendError::NotAccepted(t.0),
-            Self::Closed(t) => DynTrySendError::Closed(t.0),
-            Self::Full(t) => DynTrySendError::Full(t.0),
-        }
-    }
-
-    pub(crate) fn map_cancel_first(self, output: T::Output) -> DynTrySendError<(T::Input, W)>
-    where
-        T: Message,
-    {
-        match self {
-            Self::NotAccepted(t) => DynTrySendError::NotAccepted((t.0.cancel(output), t.1)),
-            Self::Closed(t) => DynTrySendError::Closed((t.0.cancel(output), t.1)),
-            Self::Full(t) => DynTrySendError::Full((t.0.cancel(output), t.1)),
         }
     }
 }

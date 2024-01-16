@@ -34,12 +34,14 @@ pub trait DynSendsExt: DynSends + Sized {
     {
         WithValueSender::new(self, with)
     }
-    fn map_with<W, F1, F2>(self, f1: F1, f2: F2) -> MappedWithSender<Self, F1, F2, W>
+
+    fn map_with<W>(
+        self,
+        f1: fn(W) -> Self::With,
+        f2: fn(Self::With) -> W,
+    ) -> MappedWithSender<Self, W>
     where
         Self: SendsProtocol + Send + Sync,
-        F1: Fn(W) -> Self::With + Send + Sync,
-        F2: Fn(Self::With) -> W + Send + Sync,
-        W: Send,
     {
         MappedWithSender::new(self, f1, f2)
     }
@@ -99,7 +101,7 @@ pub trait DynSendsExt: DynSends + Sized {
         async {
             match fut.await {
                 Ok(()) => Ok(()),
-                Err(e) => Err(e.map_first()),
+                Err(e) => Err(e.map(|(t, _)| t)),
             }
         }
     }
@@ -110,7 +112,7 @@ pub trait DynSendsExt: DynSends + Sized {
     {
         match self.dyn_send_msg_blocking_with(msg, Default::default()) {
             Ok(()) => Ok(()),
-            Err(e) => Err(e.map_first()),
+            Err(e) => Err(e.map(|(t, _)| t)),
         }
     }
     fn dyn_try_send_msg<M>(&self, msg: M) -> Result<(), DynTrySendError<M>>
@@ -120,7 +122,7 @@ pub trait DynSendsExt: DynSends + Sized {
     {
         match self.dyn_try_send_msg_with(msg, Default::default()) {
             Ok(()) => Ok(()),
-            Err(e) => Err(e.map_first()),
+            Err(e) => Err(e.map(|(t, _)| t)),
         }
     }
 
@@ -139,7 +141,7 @@ pub trait DynSendsExt: DynSends + Sized {
         async {
             match fut.await {
                 Ok(()) => Ok(output),
-                Err(e) => Err(e.map_cancel_first(output)),
+                Err(e) => Err(e.map(|(t, w)| (t.cancel(output), w))),
             }
         }
     }
@@ -156,7 +158,7 @@ pub trait DynSendsExt: DynSends + Sized {
         let (msg, output) = M::create(msg.into());
         match self.dyn_send_msg_blocking_with(msg, with) {
             Ok(()) => Ok(output),
-            Err(e) => Err(e.map_cancel_first(output)),
+            Err(e) => Err(e.map(|(t, w)| (t.cancel(output), w))),
         }
     }
     fn dyn_try_send_with<M: Message>(
@@ -172,7 +174,7 @@ pub trait DynSendsExt: DynSends + Sized {
         let (msg, output) = M::create(msg.into());
         match self.dyn_try_send_msg_with(msg, with) {
             Ok(()) => Ok(output),
-            Err(e) => Err(e.map_cancel_first(output)),
+            Err(e) => Err(e.map(|(t, w)| (t.cancel(output), w))),
         }
     }
     fn dyn_send<M: Message>(
@@ -188,7 +190,7 @@ pub trait DynSendsExt: DynSends + Sized {
         async {
             match fut.await {
                 Ok(output) => Ok(output),
-                Err(e) => Err(e.map_first()),
+                Err(e) => Err(e.map(|(t, _)| t)),
             }
         }
     }
@@ -203,7 +205,7 @@ pub trait DynSendsExt: DynSends + Sized {
     {
         match self.dyn_send_blocking_with::<M>(msg, Default::default()) {
             Ok(output) => Ok(output),
-            Err(e) => Err(e.map_first()),
+            Err(e) => Err(e.map(|(t, _)| t)),
         }
     }
     fn dyn_try_send<M: Message>(
@@ -217,7 +219,7 @@ pub trait DynSendsExt: DynSends + Sized {
     {
         match self.dyn_try_send_with::<M>(msg, Default::default()) {
             Ok(output) => Ok(output),
-            Err(e) => Err(e.map_first()),
+            Err(e) => Err(e.map(|(t, _)| t)),
         }
     }
 

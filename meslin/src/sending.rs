@@ -98,7 +98,7 @@ where
         async {
             match fut.await {
                 Ok(()) => Ok(()),
-                Err(e) => Err(e.map_into_msg_unwrap()),
+                Err(e) => Err(e.map(|(t, w)| (t.try_into().unwrap_silent(), w))),
             }
         }
     }
@@ -109,7 +109,7 @@ where
         with: Self::With,
     ) -> Result<(), SendError<(M, Self::With)>> {
         T::send_protocol_blocking_with(this, T::Protocol::from(msg), with)
-            .map_err(|e| e.map_into_msg_unwrap())
+            .map_err(|e| e.map(|(t, w)| (t.try_into().unwrap_silent(), w)))
     }
 
     fn try_send_msg_with(
@@ -118,7 +118,7 @@ where
         with: Self::With,
     ) -> Result<(), TrySendError<(M, Self::With)>> {
         T::try_send_protocol_with(this, T::Protocol::from(msg), with)
-            .map_err(|e| e.map_into_msg_first_unwrap())
+            .map_err(|e| e.map(|(t, w)| (t.try_into().unwrap_silent(), w)))
     }
 }
 
@@ -160,7 +160,7 @@ pub trait SendsExt: IsSender {
         Self::With: Default,
     {
         let fut = self.send_msg_with(msg, Default::default());
-        async { fut.await.map_err(|e| e.map_first()) }
+        async { fut.await.map_err(|e| e.map(|(t, _)| t)) }
     }
     fn send_msg_blocking<M: Message>(&self, msg: M) -> Result<(), SendError<M>>
     where
@@ -168,7 +168,7 @@ pub trait SendsExt: IsSender {
         Self::With: Default,
     {
         self.send_msg_blocking_with(msg, Default::default())
-            .map_err(|e| e.map_first())
+            .map_err(|e| e.map(|(t, _)| t))
     }
     fn try_send_msg<M: Message>(&self, msg: M) -> Result<(), TrySendError<M>>
     where
@@ -176,7 +176,7 @@ pub trait SendsExt: IsSender {
         Self::With: Default,
     {
         self.try_send_msg_with(msg, Default::default())
-            .map_err(|e| e.map_into_first())
+            .map_err(|e| e.map(|(t, _)| t))
     }
 
     fn send_with<M: Message>(
@@ -193,7 +193,7 @@ pub trait SendsExt: IsSender {
         async {
             match fut.await {
                 Ok(()) => Ok(output),
-                Err(e) => Err(e.map_cancel_first(output)),
+                Err(e) => Err(e.map(|(t, w)| (t.cancel(output), w))),
             }
         }
     }
@@ -208,7 +208,7 @@ pub trait SendsExt: IsSender {
         let (msg, output) = M::create(msg.into());
         match self.send_msg_blocking_with(msg, with) {
             Ok(()) => Ok(output),
-            Err(e) => Err(e.map_cancel_first(output)),
+            Err(e) => Err(e.map(|(t, w)| (t.cancel(output), w))),
         }
     }
     fn try_send_with<M: Message>(
@@ -222,7 +222,7 @@ pub trait SendsExt: IsSender {
         let (msg, output) = M::create(msg.into());
         match self.try_send_msg_with(msg, with) {
             Ok(()) => Ok(output),
-            Err(e) => Err(e.map_cancel_first(output)),
+            Err(e) => Err(e.map(|(t, w)| (t.cancel(output), w))),
         }
     }
     fn send<M: Message>(
@@ -235,7 +235,7 @@ pub trait SendsExt: IsSender {
         M::Output: Send,
     {
         let fut = self.send_with(msg, Default::default());
-        async { fut.await.map_err(|e| e.map_first()) }
+        async { fut.await.map_err(|e| e.map(|(t, _)| t)) }
     }
     fn send_blocking<M: Message>(
         &self,
@@ -246,7 +246,7 @@ pub trait SendsExt: IsSender {
         Self::With: Default,
     {
         self.send_blocking_with(msg, Default::default())
-            .map_err(|e| e.map_first())
+            .map_err(|e| e.map(|(t, _)| t))
     }
     fn try_send<M: Message>(
         &self,
@@ -257,7 +257,7 @@ pub trait SendsExt: IsSender {
         Self::With: Default,
     {
         self.try_send_with(msg, Default::default())
-            .map_err(|e| e.map_into_first())
+            .map_err(|e| e.map(|(t, _)| t))
     }
 
     fn request_with<M: Message>(
