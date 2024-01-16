@@ -5,6 +5,7 @@ pub struct Sender<P> {
     sender: flume::Sender<P>,
 }
 
+/// Re-export of [`flume::Receiver`].
 pub use flume::Receiver;
 
 impl<P> Sender<P> {

@@ -1,9 +1,14 @@
 [package]
 name = "meslin"
-version = "0.1.0"
+version = "0.0.2"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+license = "MIT OR Apache-2.0"
+keywords = ["actor", "messaging", "channel"]
+categories = ["asynchronous", "concurrency"]
+description = "Ergonomic messaging for Rust"
+homepage = "https://github.com/jvdwrf/Meslin"
+repository = "https://github.com/jvdwrf/Meslin"
+readme = "../README.md"
 
 [dependencies]
 futures = { version = "0.3", features = ["executor"] }
@@ -11,10 +16,11 @@ tokio = { version = "1", features = ["sync"], optional = true, default-features 
 async-priority-channel = { version = "0.2", optional = true }
 flume = { version = "0.11", optional = true }
 oneshot = { version = "0.1", optional = true }
-meslin-derive = { version = "0.1", path = "../meslin-derive", optional = true }
 derive_more = { version = "1.0.0-beta.6", optional = true, default-features = false }
 thiserror = { version = "1" }
 async-broadcast = { version = "0.6", optional = true }
+
+meslin-derive = { version = "0.0.2", path = "../meslin-derive", optional = true }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }
@@ -26,4 +32,7 @@ request = ["dep:oneshot"]
 broadcast = ["dep:async-broadcast"]
 watch = ["dep:tokio"]
 priority = ["dep:async-priority-channel"]
-default = ["derive", "request", "mpmc", "broadcast", "priority", "watch"]
+default = ["derive", "request", "mpmc", "broadcast", "priority"]
+
+[package.metadata.docs.rs]
+features = ["watch"]

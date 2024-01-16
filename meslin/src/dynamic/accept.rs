@@ -4,7 +4,7 @@ use std::any::TypeId;
 /// Trait that allows usage of dynamic senders for a protocol
 ///
 /// This is usually derived on an enum using [`macro@DynFromInto`]
-pub trait DynFromInto: AcceptsAll + Sized {
+pub trait DynFromInto: AcceptsList + Sized {
     /// Attempt to convert a bxed [`Message`] into the full protocol (enum),
     /// failing if the message is not accepted.
     fn try_from_boxed_msg<W: 'static>(msg: BoxedMsg<W>) -> Result<(Self, W), BoxedMsg<W>>;
@@ -22,8 +22,8 @@ pub trait Accepts<M> {}
 /// Trait that specifies a list of messages accepted by a protocol.
 ///
 /// This is usually derived on an enum using [`macro@DynFromInto`]
-pub trait AcceptsAll {
-    fn accepts_all() -> &'static [TypeId];
+pub trait AcceptsList {
+    fn accepts_list() -> &'static [TypeId];
 }
 
 /// Marker trait that indicates a subset of T is accepted.
@@ -103,9 +103,9 @@ pub mod marker {
                     S: $accepts<$($gen),*>
                 {}
 
-                impl<$($gen: 'static,)*> AcceptsAll for crate::Accepts!($($gen,)*)
+                impl<$($gen: 'static,)*> AcceptsList for crate::Accepts!($($gen,)*)
                 {
-                    fn accepts_all() -> &'static [std::any::TypeId] {
+                    fn accepts_list() -> &'static [std::any::TypeId] {
                         static LOCK: OnceLock<[TypeId; $n]> = OnceLock::new();
                         LOCK.get_or_init(|| [ $(TypeId::of::<$gen>()),* ])
                     }
@@ -157,8 +157,8 @@ mod test {
 
     #[test]
     fn type_ids_same() {
-        assert_eq!(<Accepts!(u32)>::accepts_all()[0], TypeId::of::<u32>(),);
-        assert_eq!(<Accepts!(u32, u64)>::accepts_all()[0], TypeId::of::<u32>(),);
-        assert_eq!(<Accepts!(u32, u64)>::accepts_all()[1], TypeId::of::<u64>(),);
+        assert_eq!(<Accepts!(u32)>::accepts_list()[0], TypeId::of::<u32>(),);
+        assert_eq!(<Accepts!(u32, u64)>::accepts_list()[0], TypeId::of::<u32>(),);
+        assert_eq!(<Accepts!(u32, u64)>::accepts_list()[1], TypeId::of::<u64>(),);
     }
 }

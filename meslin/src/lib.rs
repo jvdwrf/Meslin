@@ -76,8 +76,9 @@
 //!   `ProtocolA` implements [`DynFromInto`] and `Accepts<Msg1> + Accepts<...> + ...`.
 //! 
 //! ## Cargo features
-//! By default, all features are enabled. The following features are available:
-//! - `["derive", "request", "mpmc", "broadcast", "priority", "watch"]`
+//! The following features are available:
+//! - Default features: `["derive", "request", "mpmc", "broadcast", "priority"]`
+//! - Additional features: `["watch"]""
 //!
 //! ## Basic example
 //! ```

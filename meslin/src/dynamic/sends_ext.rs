@@ -11,7 +11,7 @@ use crate::*;
 pub trait DynSendsExt: DynSends + Sized {
     /// Check if the sender accepts a message.
     fn accepts(&self, msg_id: TypeId) -> bool {
-        self.accepts_all().contains(&msg_id)
+        self.accepts_list().contains(&msg_id)
     }
 
     /// Convert the sender into a boxed sender.

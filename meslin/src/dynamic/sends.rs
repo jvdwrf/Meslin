@@ -20,7 +20,7 @@ pub trait DynSends: IsSender + Send + 'static {
         msg: BoxedMsg<Self::With>,
     ) -> Result<(), DynTrySendError<BoxedMsg<Self::With>>>;
 
-    fn accepts_all(&self) -> &'static [TypeId];
+    fn accepts_list(&self) -> &'static [TypeId];
 
     fn clone_boxed(&self) -> BoxedSender<Self::With>;
 
@@ -76,8 +76,8 @@ where
         })
     }
 
-    fn accepts_all(&self) -> &'static [TypeId] {
-        T::Protocol::accepts_all()
+    fn accepts_list(&self) -> &'static [TypeId] {
+        T::Protocol::accepts_list()
     }
 
     fn clone_boxed(&self) -> BoxedSender<Self::With> {
@@ -122,8 +122,8 @@ impl<W: 'static> DynSends for BoxedSender<W> {
         (**self).dyn_try_send_boxed_msg_with(msg)
     }
 
-    fn accepts_all(&self) -> &'static [TypeId] {
-        (**self).accepts_all()
+    fn accepts_list(&self) -> &'static [TypeId] {
+        (**self).accepts_list()
     }
 
     fn clone_boxed(&self) -> BoxedSender<Self::With> {

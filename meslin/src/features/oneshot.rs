@@ -1,20 +1,22 @@
 use crate::*;
 
-/// This can be used for as message `A` that requires response `B`. 
-/// 
+/// A [`Message`] with input `A`, returning a response `B`.
+///
 /// This implements [`Message`] with [`oneshot::Receiver`] as output.
 #[derive(Debug)]
 pub struct Request<A, B> {
     pub msg: A,
-    pub tx: oneshot::Sender<B>,
+    pub tx: ::oneshot::Sender<B>,
 }
 
-pub use oneshot::Receiver;
-pub use oneshot::Sender;
+/// Re-export of [`oneshot::Receiver`](::oneshot::Receiver).
+pub use ::oneshot::Receiver;
+/// Re-export of [`oneshot::Sender`](::oneshot::Sender).
+pub use ::oneshot::Sender;
 
 impl<A, B> Request<A, B> {
-    pub fn new(msg: A) -> (Self, oneshot::Receiver<B>) {
-        let (sender, receiver) = oneshot::channel();
+    pub fn new(msg: A) -> (Self, ::oneshot::Receiver<B>) {
+        let (sender, receiver) = ::oneshot::channel();
         (Self { msg, tx: sender }, receiver)
     }
 }
@@ -25,7 +27,7 @@ where
     B: Send + 'static,
 {
     type Input = A;
-    type Output = oneshot::Receiver<B>;
+    type Output = ::oneshot::Receiver<B>;
 
     fn create(input: Self::Input) -> (Self, Self::Output) {
         Self::new(input)

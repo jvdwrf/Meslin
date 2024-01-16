@@ -5,15 +5,6 @@ extern crate syn;
 
 mod dyn_from_into;
 mod message;
-// mod protocol;
-
-// #[proc_macro_derive(Protocol, attributes())]
-// pub fn derive_protocol(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-//     let input = parse_macro_input!(input as syn::DeriveInput);
-//     protocol::derive_protocol(input)
-//         .unwrap_or_else(|e| e.to_compile_error())
-//         .into()
-// }
 
 #[proc_macro_derive(DynFromInto, attributes())]
 pub fn derive_dyn_from_into(input: proc_macro::TokenStream) -> proc_macro::TokenStream {

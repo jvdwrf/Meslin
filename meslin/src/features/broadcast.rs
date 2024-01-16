@@ -6,6 +6,7 @@ pub struct Sender<P> {
     sender: async_broadcast::Sender<P>,
 }
 
+/// Re-export of [`async_broadcast::Receiver`].
 pub use async_broadcast::Receiver;
 use futures::Future;
 

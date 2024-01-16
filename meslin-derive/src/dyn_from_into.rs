@@ -44,8 +44,8 @@ pub fn derive(input: DeriveInput) -> syn::Result<TokenStream> {
 
     Ok(quote! {
         #[automatically_derived]
-        impl #impl_generics meslin::AcceptsAll for #name #ty_generics #where_clause {
-            fn accepts_all() -> &'static [std::any::TypeId] {
+        impl #impl_generics meslin::AcceptsList for #name #ty_generics #where_clause {
+            fn accepts_list() -> &'static [std::any::TypeId] {
                 static LOCK: std::sync::OnceLock<[std::any::TypeId; #len]> = std::sync::OnceLock::new();
                 LOCK.get_or_init(|| {
                     [

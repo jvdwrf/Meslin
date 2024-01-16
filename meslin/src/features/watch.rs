@@ -8,6 +8,7 @@ pub struct Sender<P> {
     sender: Arc<watch::Sender<P>>,
 }
 
+/// Re-export of [`tokio::sync::watch::Receiver`].
 pub use watch::Receiver;
 
 impl<P> Sender<P> {

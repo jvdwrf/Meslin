@@ -9,7 +9,7 @@ use std::{
 /// A wrapper around a [`Box<dyn DynSends>`](DynSends) that allows for type-checked conversions.
 ///
 /// Any sender can be converted into a `DynSender`, as long as the protocol it sends implements
-/// [`DynFromInto`] and marker traits [`Accepts<M>`]. This conversion is type-checked, so that
+/// [`DynFromInto`] and marker traits [`trait@Accepts<M>`]. This conversion is type-checked, so that
 /// it is impossible to create [`DynSender`]s that send messages not accepted by the protocol.
 /// 
 /// ## Sending
@@ -65,13 +65,13 @@ impl<A: ?Sized, W> DynSender<A, W> {
     /// failing if the protocol does not accept the messages.
     pub fn try_transform<A2: ?Sized>(self) -> Result<DynSender<A2, W>, Self>
     where
-        A2: AcceptsAll,
+        A2: AcceptsList,
         W: 'static,
         A: 'static,
     {
-        if A2::accepts_all()
+        if A2::accepts_list()
             .iter()
-            .all(|t2| self.accepts_all().contains(t2))
+            .all(|t2| self.accepts_list().contains(t2))
         {
             Ok(DynSender::from_boxed_unchecked(self.sender))
         } else {
@@ -159,8 +159,8 @@ where
         self.sender.dyn_try_send_boxed_msg_with(msg)
     }
 
-    fn accepts_all(&self) -> &'static [TypeId] {
-        self.sender.accepts_all()
+    fn accepts_list(&self) -> &'static [TypeId] {
+        self.sender.accepts_list()
     }
 
     fn clone_boxed(&self) -> BoxedSender<Self::With> {

@@ -7,6 +7,7 @@ pub struct Sender<P, O: Ord> {
     sender: prio::Sender<P, O>,
 }
 
+/// Re-export of [`async_priority_channel::Receiver`].
 pub use prio::Receiver;
 
 impl<P, O: Ord> Sender<P, O> {
