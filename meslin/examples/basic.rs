@@ -1,9 +1,12 @@
 use meslin::{mpmc, From, Message, Request, SendsExt, TryInto};
 
+// Create a simple, custom message type
 #[derive(Debug, From, Message)]
 #[from(forward)]
 struct MyMessage(String);
 
+// Create the protocol used by the actor
+// It defines the messages that can be sent
 #[derive(Debug, From, TryInto)]
 enum MyProtocol {
     Number(i32),
@@ -13,8 +16,9 @@ enum MyProtocol {
 
 #[tokio::main]
 async fn main() {
+    // Create the channel and spawn a task that receives messages
     let (sender, receiver) = mpmc::unbounded::<MyProtocol>();
-    tokio::task::spawn(task(receiver));
+    tokio::task::spawn(receive_messages(receiver));
 
     // Send a number
     sender.send::<i32>(42).await.unwrap();
@@ -32,7 +36,8 @@ async fn main() {
     assert_eq!(reply, "The number is 42");
 }
 
-async fn task(receiver: mpmc::Receiver<MyProtocol>) {
+// This is completely standard: `mpmc::Receiver` == `flume::Receiver`
+async fn receive_messages(receiver: mpmc::Receiver<MyProtocol>) {
     while let Ok(msg) = receiver.recv_async().await {
         match msg {
             MyProtocol::Number(msg) => {

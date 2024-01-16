@@ -1,6 +1,6 @@
 use crate::*;
 use futures::future::BoxFuture;
-use std::any::{TypeId, Any};
+use std::any::{Any, TypeId};
 
 /// Automatically implemented when [`SendsProtocol`] is implemented for a protocol
 /// that implements [`DynFromInto`].
@@ -95,6 +95,17 @@ where
 //-------------------------------------
 // Implement for BoxSender
 //-------------------------------------
+
+impl<W, T> From<T> for BoxedSender<W>
+where
+    T: SendsProtocol<With = W> + Clone + Send + Sync + 'static,
+    T::Protocol: DynFromInto,
+    W: Send + 'static,
+{
+    fn from(sender: T) -> Self {
+        Box::new(sender)
+    }
+}
 
 impl<W: 'static> DynSends for BoxedSender<W> {
     fn dyn_send_boxed_msg_with(
