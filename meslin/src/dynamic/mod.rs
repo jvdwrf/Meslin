@@ -2,8 +2,9 @@ use crate::*;
 use std::{fmt::Debug, marker::PhantomData};
 
 mod sends_ext;
-mod wrappers;
 pub use sends_ext::*;
+mod wrappers;
+pub use wrappers::*;
 mod sends;
 pub use sends::*;
 mod accept;

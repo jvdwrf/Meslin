@@ -25,24 +25,23 @@ pub trait DynSendsExt: DynSends + Sized {
     {
         DynSender::new_unchecked(self)
     }
-    fn into_dyn_mapped<A: ?Sized, W>(self) -> DynSender<A, W>
+
+    fn with<W>(self, with: Self::With) -> WithValueSender<Self, W>
     where
-        Self: SendsProtocol + Sync + Clone,
-        Self::With: Default,
-        Self::Protocol: DynFromInto,
-        W: Send + 'static,
-        A: TransformFrom<Self::Protocol>,
+        Self: SendsProtocol,
+        Self::With: Clone,
+        W: Send,
     {
-        DynSender::new_mapped(self)
+        WithValueSender::new(self, with)
     }
-    fn into_dyn_mapped_unchecked<A: ?Sized, W>(self) -> DynSender<A, W>
+    fn map_with<W, F1, F2>(self, f1: F1, f2: F2) -> MappedWithSender<Self, F1, F2, W>
     where
-        Self: SendsProtocol + Sync + Clone,
-        Self::With: Default,
-        Self::Protocol: DynFromInto,
-        W: Send + 'static,
+        Self: SendsProtocol + Send + Sync,
+        F1: Fn(W) -> Self::With + Send + Sync,
+        F2: Fn(Self::With) -> W + Send + Sync,
+        W: Send,
     {
-        DynSender::new_mapped_unchecked(self)
+        MappedWithSender::new(self, f1, f2)
     }
 
     /// See [`SendsExt::send_msg_with`].

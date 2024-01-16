@@ -1,12 +1,12 @@
 use crate::*;
 use futures::{future::BoxFuture, Future};
 use std::{
-    any::{type_name, TypeId},
+    any::{type_name, Any, TypeId},
     fmt::Debug,
     marker::PhantomData,
 };
 
-use super::wrappers::MappedWithSender;
+use super::wrappers::WithValueSender;
 
 pub struct DynSender<A: ?Sized, W = ()> {
     sender: BoxedSender<W>,
@@ -22,15 +22,15 @@ impl<A: ?Sized, W> DynSender<A, W> {
         Self::new_unchecked(sender)
     }
 
-    pub fn new_mapped<S>(sender: S) -> Self
+    pub fn new_with<S>(sender: S, with: S::With) -> Self
     where
         S: SendsProtocol + DynSends + Sync + Clone,
-        S::With: Default,
+        S::With: Clone + Send + Sync,
         S::Protocol: DynFromInto,
         W: Send + 'static,
         A: TransformFrom<S::Protocol>,
     {
-        Self::new_mapped_unchecked(sender)
+        Self::new_with_unchecked(sender, with)
     }
 
     pub fn new_unchecked<S>(sender: S) -> Self
@@ -40,14 +40,14 @@ impl<A: ?Sized, W> DynSender<A, W> {
         Self::from_boxed_unchecked(Box::new(sender))
     }
 
-    pub fn new_mapped_unchecked<S>(sender: S) -> Self
+    pub fn new_with_unchecked<S>(sender: S, with: S::With) -> Self
     where
         S: SendsProtocol + DynSends + Sync + Clone,
-        S::With: Default,
+        S::With: Clone + Send + Sync,
         S::Protocol: DynFromInto,
         W: Send + 'static,
     {
-        let mapped_sender = MappedWithSender::<_, W>::new(sender);
+        let mapped_sender = WithValueSender::<_, W>::new(sender, with);
         Self::new_unchecked(mapped_sender)
     }
 
@@ -87,6 +87,14 @@ impl<A: ?Sized, W> DynSender<A, W> {
 
     pub fn into_boxed_sender(self) -> BoxedSender<W> {
         self.sender
+    }
+
+    pub fn downcast_ref<S>(&self) -> Option<&S>
+    where
+        S: DynSends<With = W>,
+        W: 'static,
+    {
+        self.sender.as_any().downcast_ref::<S>()
     }
 }
 
@@ -146,6 +154,10 @@ where
 
     fn clone_boxed(&self) -> BoxedSender<Self::With> {
         self.sender.clone_boxed()
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self.sender.as_any()
     }
 }
 
