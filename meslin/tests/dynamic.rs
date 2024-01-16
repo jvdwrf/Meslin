@@ -16,13 +16,15 @@ pub struct HelloWorld(pub String);
 async fn test() {
     let (sender, _receiver) = mpmc::unbounded::<MyProtocol>();
 
-    let boxed_sender = sender.clone().into_boxed_sender();
+    let _ = sender.clone().into_dyn::<Accepts![u32]>();
+
+    let boxed_sender = sender.clone().into_boxed();
     boxed_sender
         .dyn_send::<HelloWorld>("Hello world!")
         .await
         .unwrap();
 
-    let dyn_sender = DynSender::<Accepts![HelloWorld]>::from_boxed_sender_unchecked(boxed_sender);
+    let dyn_sender = DynSender::<Accepts![HelloWorld]>::from_boxed_unchecked(boxed_sender);
     dyn_sender
         .dyn_send::<HelloWorld>("Hello world!")
         .await
@@ -35,4 +37,30 @@ async fn test() {
     dyn_sender
         .try_transform::<Accepts![u64, u32]>()
         .unwrap_err();
+}
+
+#[tokio::test]
+async fn test2() {
+    #[derive(Debug, From, TryInto, DynFromInto)]
+    enum P1 {
+        A(u32),
+        B(u64),
+    }
+
+    #[derive(Debug, From, TryInto, DynFromInto)]
+    enum P2 {
+        A(u16),
+        B(u32),
+    }
+
+    let (sender1, _receiver) = mpmc::unbounded::<P1>();
+    let (sender2, _receiver) = priority::unbounded::<P2, u32>();
+
+    let senders /*: Vec<DynSender<Accepts![u32]>> */ = vec![
+        sender1.into_dyn::<Accepts![u32]>(), 
+        sender2.into_dyn_mapped::<Accepts![u32], ()>()
+    ];
+
+    senders[0].send::<u32>(8u32).await.unwrap();
+    senders[1].send::<u32>(8u32).await.unwrap();
 }

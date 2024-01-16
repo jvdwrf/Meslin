@@ -1,10 +1,22 @@
-use std::{num::*, sync::Arc};
+use std::{
+    collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, HashSet, LinkedList, VecDeque},
+    num::*,
+    rc::Rc,
+    sync::Arc,
+};
 
-/// All messages must implement this trait.
+/// All messages that are sent through a channel must implement this trait.
 ///
-/// It defines two types: `Input` and `Output`.
+/// It defines two types: `Input` and `Output`:
 /// - [`Message::Input`] is the type that is converted into the message.
 /// - [`Message::Output`] is the type that is returned when the message is sent.
+///
+/// Whenever a message is sent, it is converted into a message and an output.
+/// Then, upon a succesful send, the output is returned. If sending failed, the
+/// message is canceled and the input is returned again.
+///
+/// Message is automatically implemented for a lot of common types, like `i32`,
+/// `String`, `Vec<T>`, etc.
 pub trait Message: Sized {
     /// The type that is converted into the message.
     type Input;
@@ -13,9 +25,13 @@ pub trait Message: Sized {
     type Output;
 
     /// Create a message from the given input.
+    ///
+    /// Called when the message is sent.
     fn create(input: Self::Input) -> (Self, Self::Output);
 
     /// Cancel the message and return the input.
+    ///
+    /// Called when sending the message failed.
     fn cancel(self, output: Self::Output) -> Self::Input;
 }
 
@@ -77,13 +93,16 @@ common_messages!(0;
 );
 common_messages!(1;
     Option<T1>,
-    Vec<T1>,
+    Vec<T1>, HashSet<T1>, BTreeSet<T1>, LinkedList<T1>, BinaryHeap<T1>, VecDeque<T1>,
     Box<T1>,
     Arc<T1>,
+    Rc<T1>,
     &'static [T1],
 );
 common_messages!(2;
     Result<T1, T2>,
+    HashMap<T1, T2>, BTreeMap<T1, T2>,
+
 );
 
 macro_rules! tuple_messages {

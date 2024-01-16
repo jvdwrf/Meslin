@@ -1,5 +1,6 @@
 #![allow(clippy::type_complexity)]
-
+#![deny(unsafe_code)]
+#[doc = include_str!("../../README.md")]
 mod dynamic;
 mod errors;
 mod features;

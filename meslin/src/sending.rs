@@ -1,23 +1,38 @@
 use crate::*;
 use std::future::Future;
 
-//-------------------------------------
-// Implemented by the user
-//-------------------------------------
-
+/// Any sender, whether dynamic or not, must implement this trait. It defines some basic common
+/// methods for all senders, and defines the type [`IsSender::With`].
+///
+/// [`IsSender::With`] is the value that must be passed along when sending a message.
 #[allow(clippy::len_without_is_empty)]
 pub trait IsSender {
+    /// The value that must be passed along when sending a message.
     type With;
 
+    /// Returns `true` if the channel is closed.
     fn is_closed(&self) -> bool;
+
+    /// Returns the capacity of the channel, if it is bounded.
     fn capacity(&self) -> Option<usize>;
+
+    /// Returns the number of messages in the channel.
     fn len(&self) -> usize;
+
+    /// Returns the number of receivers in the channel.
     fn receiver_count(&self) -> usize;
+
+    /// Returns the number of senders in the channel.
     fn sender_count(&self) -> usize;
 }
 
-/// Send a message, and wait for space
+/// A supertrait of [`IsSender`], that additionally defines the protocol that can be sent to
+/// this sender, and how to send it.
+///
+/// When this trait is implemented, [`Sends<M>`] is automatically implemented as well if
+/// [`SendsProtocol::Protocol`] implements `From<M>` and `TryInto<M>`.
 pub trait SendsProtocol: IsSender {
+    /// The protocol that can be sent to this sender.
     type Protocol;
 
     fn send_protocol_with(
@@ -41,11 +56,12 @@ pub trait SendsProtocol: IsSender {
     ) -> Result<(), TrySendError<(Self::Protocol, Self::With)>>;
 }
 
-//-------------------------------------
-// Automatically implemented
-//-------------------------------------
-
-/// Automatically implemented when [`SendProtocol`] is implemented.
+/// This trait defines when a message `M` can be sent to the sender.
+///
+/// Automatically implemented when [`SendsProtocol`] is implemented.
+///
+/// [`SendsExt`] is automatically implemented for all types that implement this trait, and contains
+/// all the methods for sending messages.
 pub trait Sends<M>: IsSender {
     fn send_msg_with(
         this: &Self,
@@ -70,19 +86,21 @@ pub trait Sends<M>: IsSender {
 
 impl<M, T> Sends<M> for T
 where
-    T: SendsProtocol + Send + Sync,
+    T: SendsProtocol,
     T::Protocol: From<M> + TryInto<M>,
-    M: Send,
-    T::With: Send,
 {
-    async fn send_msg_with(
+    fn send_msg_with(
         this: &Self,
         msg: M,
         with: Self::With,
-    ) -> Result<(), SendError<(M, Self::With)>> {
-        T::send_protocol_with(this, T::Protocol::from(msg), with)
-            .await
-            .map_err(|e| e.map_into_msg_unwrap())
+    ) -> impl Future<Output = Result<(), SendError<(M, Self::With)>>> + Send {
+        let fut = Self::send_protocol_with(this, T::Protocol::from(msg), with);
+        async {
+            match fut.await {
+                Ok(()) => Ok(()),
+                Err(e) => Err(e.map_into_msg_unwrap()),
+            }
+        }
     }
 
     fn send_msg_blocking_with(

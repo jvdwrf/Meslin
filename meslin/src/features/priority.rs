@@ -1,6 +1,6 @@
 use crate::*;
 use async_priority_channel as prio;
-use std::{f32::consts::E, fmt::Debug};
+use std::fmt::Debug;
 
 /// Wrapper around [`async_priority_channel::Sender`].
 pub struct Sender<P, O: Ord> {
@@ -82,6 +82,14 @@ impl<P: Debug, O: Ord + Debug> Debug for Sender<P, O> {
         f.debug_struct("Sender")
             .field("sender", &self.sender)
             .finish()
+    }
+}
+
+impl<P, O: Ord> Clone for Sender<P, O> {
+    fn clone(&self) -> Self {
+        Self {
+            sender: self.sender.clone(),
+        }
     }
 }
 

@@ -1,6 +1,6 @@
 use crate::*;
 
-/// Wrapper around [`flume::Sender`].
+/// A wrapper around [`flume::Sender`].
 pub struct Sender<P> {
     sender: flume::Sender<P>,
 }

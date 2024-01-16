@@ -2,71 +2,26 @@ use crate::*;
 use core::future::Future;
 use std::marker::PhantomData;
 
-pub(super) struct DefaultWithWrapper<T>(T);
+/// Maps a `IsSender::With: Default` to `IsSender<With = W>`.
+pub(super) struct MappedWithSender<T, W>(T, PhantomData<fn() -> W>);
 
-impl<T> IsSender for DefaultWithWrapper<T>
-where
-    T: IsSender,
-{
-    type With = ();
-
-    fn is_closed(&self) -> bool {
-        self.0.is_closed()
-    }
-
-    fn capacity(&self) -> Option<usize> {
-        self.0.capacity()
-    }
-
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    fn receiver_count(&self) -> usize {
-        self.0.receiver_count()
-    }
-
-    fn sender_count(&self) -> usize {
-        self.0.sender_count()
+impl<T: Clone, W> Clone for MappedWithSender<T, W> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone(), PhantomData)
     }
 }
 
-impl<T> SendsProtocol for DefaultWithWrapper<T>
-where
-    T: SendsProtocol,
-    T::With: Default,
-{
-    type Protocol = T::Protocol;
-
-    fn send_protocol_with(
-        this: &Self,
-        protocol: Self::Protocol,
-        _with: (),
-    ) -> impl Future<Output = Result<(), SendError<(Self::Protocol, Self::With)>>> + Send {
-        let fut = T::send_protocol_with(&this.0, protocol, Default::default());
-        async {
-            match fut.await {
-                Ok(()) => Ok(()),
-                Err(e) => Err(e.map(|(protocol, _)| (protocol, ()))),
-            }
-        }
+impl<T, W> MappedWithSender<T, W> {
+    pub(super) fn new(t: T) -> Self {
+        Self(t, PhantomData)
     }
 
-    fn try_send_protocol_with(
-        this: &Self,
-        protocol: Self::Protocol,
-        _with: (),
-    ) -> Result<(), TrySendError<(Self::Protocol, Self::With)>> {
-        match T::try_send_protocol_with(&this.0, protocol, Default::default()) {
-            Ok(()) => Ok(()),
-            Err(e) => Err(e.map(|(protocol, _)| (protocol, ()))),
-        }
+    pub(super) fn into_inner(self) -> T {
+        self.0
     }
 }
 
-pub(super) struct IntoWithWrapper<T, W>(T, PhantomData<fn() -> W>);
-
-impl<T, W> IsSender for IntoWithWrapper<T, W>
+impl<T, W> IsSender for MappedWithSender<T, W>
 where
     T: IsSender,
 {
@@ -93,24 +48,24 @@ where
     }
 }
 
-impl<T, W> SendsProtocol for IntoWithWrapper<T, W>
+impl<T, W> SendsProtocol for MappedWithSender<T, W>
 where
     T: SendsProtocol,
-    W: Into<T::With>,
-    T::With: Into<W>,
+    T::With: Default,
+    W: Send,
 {
     type Protocol = T::Protocol;
 
     fn send_protocol_with(
         this: &Self,
         protocol: Self::Protocol,
-        with: Self::With,
+        with: W,
     ) -> impl Future<Output = Result<(), SendError<(Self::Protocol, Self::With)>>> + Send {
-        let fut = T::send_protocol_with(&this.0, protocol, with.into());
+        let fut = T::send_protocol_with(&this.0, protocol, Default::default());
         async {
             match fut.await {
                 Ok(()) => Ok(()),
-                Err(e) => Err(e.map(|(protocol, with)| (protocol, with.into()))),
+                Err(e) => Err(e.map(|(protocol, _)| (protocol, with))),
             }
         }
     }
@@ -118,11 +73,11 @@ where
     fn try_send_protocol_with(
         this: &Self,
         protocol: Self::Protocol,
-        with: Self::With,
+        with: W,
     ) -> Result<(), TrySendError<(Self::Protocol, Self::With)>> {
-        match T::try_send_protocol_with(&this.0, protocol, with.into()) {
+        match T::try_send_protocol_with(&this.0, protocol, Default::default()) {
             Ok(()) => Ok(()),
-            Err(e) => Err(e.map(|(protocol, with)| (protocol, with.into()))),
+            Err(e) => Err(e.map(|(protocol, _)| (protocol, with))),
         }
     }
 }

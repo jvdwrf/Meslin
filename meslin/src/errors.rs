@@ -1,6 +1,7 @@
 use crate::*;
 use thiserror::Error;
 
+/// Error that is returned when a channel is closed.
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Error)]
 #[error("Channel is closed: Failed to send message {0:?}.")]
 pub struct SendError<T>(pub T);
@@ -35,6 +36,7 @@ impl<T, W> SendError<(T, W)> {
     }
 }
 
+/// Error that is returned when a channel is closed or full.
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Error)]
 pub enum TrySendError<T> {
     #[error("Channel is closed: Failed to send message {0:?}.")]
@@ -88,6 +90,7 @@ impl<T, W> TrySendError<(T, W)> {
     }
 }
 
+/// Error that is returned when a channel is full, or the request did nor receive a reply
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Error)]
 pub enum RequestError<M, E> {
     #[error("Channel is closed: Failed to send message {0:?}.")]
@@ -102,6 +105,7 @@ impl<T, E> From<SendError<T>> for RequestError<T, E> {
     }
 }
 
+/// Error that is returned when a channel is closed, or the message was not accepted.
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Error)]
 pub enum DynSendError<T> {
     #[error("Message {0:?} was not accepted.")]
@@ -178,6 +182,7 @@ impl<T> From<SendError<T>> for DynSendError<T> {
     }
 }
 
+/// Error that is returned when a channel is closed, full, or the message was not accepted.
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Error)]
 pub enum DynTrySendError<T> {
     #[error("Message {0:?} was not accepted.")]

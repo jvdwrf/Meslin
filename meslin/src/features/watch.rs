@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use crate::*;
 use tokio::sync::watch;
 
+/// Wrapper around [`tokio::sync::watch::Sender`].
 pub struct Sender<P> {
     sender: watch::Sender<P>,
 }

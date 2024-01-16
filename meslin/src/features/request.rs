@@ -1,5 +1,8 @@
 use crate::*;
 
+/// This can be used for as message `A` that requires response `B`. 
+/// 
+/// This implements [`Message`] with [`oneshot::Receiver`] as output.
 #[derive(Debug)]
 pub struct Request<A, B> {
     pub msg: A,

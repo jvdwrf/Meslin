@@ -14,7 +14,7 @@ enum MyProtocol {
 #[tokio::main]
 async fn main() {
     let (sender, receiver) = mpmc::unbounded::<MyProtocol>();
-    tokio::task::spawn(task(receiver));
+    tokio::task::spawn(mpmc_task(receiver));
 
     // Send a number
     sender.send::<i32>(42).await.unwrap();
@@ -32,7 +32,7 @@ async fn main() {
     assert_eq!(reply, "The number is 42");
 }
 
-async fn task(receiver: mpmc::Receiver<MyProtocol>) {
+async fn mpmc_task(receiver: mpmc::Receiver<MyProtocol>) {
     while let Ok(msg) = receiver.recv_async().await {
         match msg {
             MyProtocol::Number(msg) => {
@@ -48,3 +48,20 @@ async fn task(receiver: mpmc::Receiver<MyProtocol>) {
         }
     }
 }
+
+// async fn priority_task(receiver: priority::Receiver<MyProtocol>) {
+//     while let Ok(msg) = receiver.recv_async().await {
+//         match msg {
+//             MyProtocol::Number(msg) => {
+//                 println!("Received number: {msg:?}");
+//             }
+//             MyProtocol::Message(msg) => {
+//                 println!("Received message: {msg:?}");
+//             }
+//             MyProtocol::Request(Request { msg, tx }) => {
+//                 println!("Received request: {msg:?}");
+//                 tx.send(format!("The number is {}", msg)).ok();
+//             }
+//         }
+//     }
+// }

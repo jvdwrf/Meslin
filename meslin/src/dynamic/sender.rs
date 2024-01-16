@@ -6,6 +6,8 @@ use std::{
     marker::PhantomData,
 };
 
+use super::wrappers::MappedWithSender;
+
 pub struct DynSender<A: ?Sized, W = ()> {
     sender: BoxedSender<W>,
     t: PhantomData<fn() -> A>,
@@ -20,18 +22,40 @@ impl<A: ?Sized, W> DynSender<A, W> {
         Self::new_unchecked(sender)
     }
 
+    pub fn new_mapped<S>(sender: S) -> Self
+    where
+        S: SendsProtocol + DynSends + Sync + Clone,
+        S::With: Default,
+        S::Protocol: DynFromInto,
+        W: Send + 'static,
+        A: TransformFrom<S::Protocol>,
+    {
+        Self::new_mapped_unchecked(sender)
+    }
+
     pub fn new_unchecked<S>(sender: S) -> Self
     where
         S: DynSends<With = W>,
     {
-        Self::from_boxed_sender_unchecked(Box::new(sender))
+        Self::from_boxed_unchecked(Box::new(sender))
+    }
+
+    pub fn new_mapped_unchecked<S>(sender: S) -> Self
+    where
+        S: SendsProtocol + DynSends + Sync + Clone,
+        S::With: Default,
+        S::Protocol: DynFromInto,
+        W: Send + 'static,
+    {
+        let mapped_sender = MappedWithSender::<_, W>::new(sender);
+        Self::new_unchecked(mapped_sender)
     }
 
     pub fn transform<A2: ?Sized>(self) -> DynSender<A2, W>
     where
         A2: TransformFrom<A>,
     {
-        DynSender::from_boxed_sender_unchecked(self.sender)
+        DynSender::from_boxed_unchecked(self.sender)
     }
 
     pub fn try_transform<A2: ?Sized>(self) -> Result<DynSender<A2, W>, Self>
@@ -44,17 +68,17 @@ impl<A: ?Sized, W> DynSender<A, W> {
             .iter()
             .all(|t2| self.accepts_all().contains(t2))
         {
-            Ok(DynSender::from_boxed_sender_unchecked(self.sender))
+            Ok(DynSender::from_boxed_unchecked(self.sender))
         } else {
             Err(self)
         }
     }
 
     pub fn transform_unchecked<T2: ?Sized>(self) -> DynSender<T2, W> {
-        DynSender::from_boxed_sender_unchecked(self.sender)
+        DynSender::from_boxed_unchecked(self.sender)
     }
 
-    pub fn from_boxed_sender_unchecked(sender: BoxedSender<W>) -> Self {
+    pub fn from_boxed_unchecked(sender: BoxedSender<W>) -> Self {
         Self {
             sender,
             t: PhantomData,

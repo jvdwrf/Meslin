@@ -1,26 +1,28 @@
 use crate::*;
-use tokio::sync::broadcast;
+use std::fmt::Debug;
 
+/// A wrapper around [`async_broadcast::Sender`].
 pub struct Sender<P> {
-    sender: broadcast::Sender<P>,
+    sender: async_broadcast::Sender<P>,
 }
 
-pub use broadcast::Receiver;
+pub use async_broadcast::Receiver;
+use futures::Future;
 
 impl<P> Sender<P> {
-    pub fn inner(&self) -> &broadcast::Sender<P> {
+    pub fn inner(&self) -> &async_broadcast::Sender<P> {
         &self.sender
     }
 
-    pub fn inner_mut(&mut self) -> &mut broadcast::Sender<P> {
+    pub fn inner_mut(&mut self) -> &mut async_broadcast::Sender<P> {
         &mut self.sender
     }
 
-    pub fn into_inner(self) -> broadcast::Sender<P> {
+    pub fn into_inner(self) -> async_broadcast::Sender<P> {
         self.sender
     }
 
-    pub fn from_inner(sender: broadcast::Sender<P>) -> Self {
+    pub fn from_inner(sender: async_broadcast::Sender<P>) -> Self {
         Self { sender }
     }
 }
@@ -33,7 +35,7 @@ impl<P> IsSender for Sender<P> {
     }
 
     fn capacity(&self) -> Option<usize> {
-        None
+        Some(self.sender.capacity())
     }
 
     fn len(&self) -> usize {
@@ -45,12 +47,11 @@ impl<P> IsSender for Sender<P> {
     }
 
     fn sender_count(&self) -> usize {
-        // https://docs.rs/async-broadcast/latest/async_broadcast/
-        todo!("Switch to another library that implements sender_count for broadcast")
+        self.sender.sender_count()
     }
 }
 
-impl<P: Send> SendsProtocol for Sender<P> {
+impl<P: Clone + Send + Sync> SendsProtocol for Sender<P> {
     type Protocol = P;
 
     fn try_send_protocol_with(
@@ -59,20 +60,22 @@ impl<P: Send> SendsProtocol for Sender<P> {
         _with: (),
     ) -> Result<(), TrySendError<(P, ())>> {
         this.sender
-            .send(protocol)
+            .try_broadcast(protocol)
             .map(|_| ())
-            .map_err(|e| TrySendError::Closed((e.0, ())))
+            .map_err(|e| match e {
+                async_broadcast::TrySendError::Full(p) => TrySendError::Full((p, ())),
+                async_broadcast::TrySendError::Closed(p) => TrySendError::Closed((p, ())),
+                async_broadcast::TrySendError::Inactive(p) => TrySendError::Closed((p, ())),
+            })
     }
 
-    async fn send_protocol_with(
+    fn send_protocol_with(
         this: &Self,
         protocol: Self::Protocol,
         _with: (),
-    ) -> Result<(), SendError<(Self::Protocol, ())>> {
-        this.sender
-            .send(protocol)
-            .map(|_| ())
-            .map_err(|e| SendError((e.0, ())))
+    ) -> impl Future<Output = Result<(), SendError<(P, ())>>> + Send {
+        let fut = this.sender.broadcast_direct(protocol);
+        async { fut.await.map(|_| ()).map_err(|e| SendError((e.0, ()))) }
     }
 }
 
@@ -84,7 +87,7 @@ impl<P> Clone for Sender<P> {
     }
 }
 
-impl<P> std::fmt::Debug for Sender<P> {
+impl<P: Debug> std::fmt::Debug for Sender<P> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Sender")
             .field("sender", &self.sender)
@@ -92,7 +95,7 @@ impl<P> std::fmt::Debug for Sender<P> {
     }
 }
 
-pub fn channel<P: Clone>(buffer: usize) -> (Sender<P>, broadcast::Receiver<P>) {
-    let (sender, receiver) = broadcast::channel(buffer);
+pub fn channel<P: Clone>(buffer: usize) -> (Sender<P>, async_broadcast::Receiver<P>) {
+    let (sender, receiver) = async_broadcast::broadcast(buffer);
     (Sender { sender }, receiver)
 }

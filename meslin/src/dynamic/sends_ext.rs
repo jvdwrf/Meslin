@@ -5,12 +5,44 @@ use futures::Future;
 use crate::*;
 
 impl<T> DynSendsExt for T where T: DynSends {}
-pub trait DynSendsExt: DynSends {
-    fn into_boxed_sender(self) -> BoxedSender<Self::With>
+pub trait DynSendsExt: DynSends + Sized {
+    fn into_boxed(self) -> BoxedSender<Self::With>
     where
         Self: Sized,
     {
         Box::new(self)
+    }
+    fn into_dyn<A: ?Sized>(self) -> DynSender<A, Self::With>
+    where
+        Self: SendsProtocol,
+        A: TransformFrom<Self::Protocol>,
+    {
+        DynSender::new(self)
+    }
+    fn into_dyn_unchecked<A: ?Sized>(self) -> DynSender<A, Self::With>
+    where
+        Self: SendsProtocol,
+    {
+        DynSender::new_unchecked(self)
+    }
+    fn into_dyn_mapped<A: ?Sized, W>(self) -> DynSender<A, W>
+    where
+        Self: SendsProtocol + Sync + Clone,
+        Self::With: Default,
+        Self::Protocol: DynFromInto,
+        W: Send + 'static,
+        A: TransformFrom<Self::Protocol>,
+    {
+        DynSender::new_mapped(self)
+    }
+    fn into_dyn_mapped_unchecked<A: ?Sized, W>(self) -> DynSender<A, W>
+    where
+        Self: SendsProtocol + Sync + Clone,
+        Self::With: Default,
+        Self::Protocol: DynFromInto,
+        W: Send + 'static,
+    {
+        DynSender::new_mapped_unchecked(self)
     }
 
     /// See [`SendsExt::send_msg_with`].
