@@ -1,6 +1,7 @@
 use std::any::TypeId;
 
 use futures::Future;
+use ::type_sets::SubsetOf;
 
 use crate::*;
 
@@ -11,7 +12,7 @@ use crate::*;
 pub trait DynSendsExt: DynSends + Sized {
     /// Check if the sender accepts a message.
     fn accepts(&self, msg_id: TypeId) -> bool {
-        self.accepts_list().contains(&msg_id)
+        self.members().contains(&msg_id)
     }
 
     /// Convert the sender into a boxed sender.
@@ -23,16 +24,16 @@ pub trait DynSendsExt: DynSends + Sized {
     }
 
     /// Convert the sender into a [`DynSender`].
-    fn into_dyn<A: ?Sized>(self) -> DynSender<A, Self::With>
+    fn into_dyn<A>(self) -> DynSender<A, Self::With>
     where
         Self: SendsProtocol,
-        A: AcceptsSubsetOf<Self::Protocol>,
+        A: SubsetOf<Self::Protocol>,
     {
         DynSender::new(self)
     }
 
     /// Convert the sender into a [`DynSender`], without checking if the protocol accepts the messages.
-    fn into_dyn_unchecked<A: ?Sized>(self) -> DynSender<A, Self::With>
+    fn into_dyn_unchecked<A>(self) -> DynSender<A, Self::With>
     where
         Self: SendsProtocol,
     {

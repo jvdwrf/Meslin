@@ -7,8 +7,8 @@ mod wrappers;
 pub use wrappers::*;
 mod sends;
 pub use sends::*;
-mod accept;
-pub use accept::*;
+mod from_into;
+pub use from_into::*;
 mod sender;
 pub use sender::*;
 

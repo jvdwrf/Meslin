@@ -21,7 +21,7 @@ thiserror = { version = "1" }
 async-broadcast = { version = "0.6", optional = true }
 
 meslin-derive = { version = "0.0.2", path = "../meslin-derive", optional = true }
-type-set = { version = "0.1", path = "../type-set" }
+type-sets = { version = "0.1", path = "../type-sets" }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }

@@ -385,6 +385,7 @@ dependencies = [
  "oneshot",
  "thiserror",
  "tokio",
+ "type-sets",
 ]
 
 [[package]]

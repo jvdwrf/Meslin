@@ -1,6 +1,7 @@
 use crate::*;
 use futures::future::BoxFuture;
 use std::any::{Any, TypeId};
+use ::type_sets::Members;
 
 /// Automatically implemented when [`SendsProtocol`] is implemented for a protocol
 /// that implements [`DynFromInto`].
@@ -20,7 +21,7 @@ pub trait DynSends: IsSender + Send + 'static {
         msg: BoxedMsg<Self::With>,
     ) -> Result<(), DynTrySendError<BoxedMsg<Self::With>>>;
 
-    fn accepts_list(&self) -> &'static [TypeId];
+    fn members(&self) -> &'static [TypeId];
 
     fn clone_boxed(&self) -> BoxedSender<Self::With>;
 
@@ -76,8 +77,8 @@ where
         })
     }
 
-    fn accepts_list(&self) -> &'static [TypeId] {
-        T::Protocol::accepts_list()
+    fn members(&self) -> &'static [TypeId] {
+        <T::Protocol as Members>::members()
     }
 
     fn clone_boxed(&self) -> BoxedSender<Self::With> {
@@ -122,8 +123,8 @@ impl<W: 'static> DynSends for BoxedSender<W> {
         (**self).dyn_try_send_boxed_msg_with(msg)
     }
 
-    fn accepts_list(&self) -> &'static [TypeId] {
-        (**self).accepts_list()
+    fn members(&self) -> &'static [TypeId] {
+        (**self).members()
     }
 
     fn clone_boxed(&self) -> BoxedSender<Self::With> {

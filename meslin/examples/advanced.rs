@@ -1,5 +1,5 @@
 use meslin::{
-    mpmc, priority, Accepts, DynFromInto, DynSender, DynSendsExt, From, MappedWithSender, SendsExt,
+    mpmc, priority, DynFromInto, DynSender, DynSendsExt, From, MappedWithSender, SendsExt, Set,
     TryInto, WithValueSender,
 };
 
@@ -29,7 +29,7 @@ async fn main() {
     sender2.send_with::<i32>(8, 15).await.unwrap(); // Uses `15` as priority
 
     // Create a vector of dynamic senders: (Checked at compile time)
-    let senders: Vec<DynSender<Accepts![i32, i64]>> = vec![
+    let senders: Vec<DynSender![i32, i64]> = vec![
         // For sender1, use `into_dyn` to transform it into a DynSender
         sender1.into_dyn(),
         // For sender2, use `with` / `map_with` and then `into_dyn` to transform it into a DynSender

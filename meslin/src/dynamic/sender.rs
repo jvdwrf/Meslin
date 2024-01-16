@@ -1,4 +1,5 @@
 use crate::*;
+use ::type_sets::{Contains, Members, SubsetOf};
 use futures::{future::BoxFuture, Future};
 use std::{
     any::{type_name, Any, TypeId},
@@ -11,13 +12,13 @@ use std::{
 /// Any sender can be converted into a `DynSender`, as long as the protocol it sends implements
 /// [`DynFromInto`] and marker traits [`trait@Accepts<M>`]. This conversion is type-checked, so that
 /// it is impossible to create [`DynSender`]s that send messages not accepted by the protocol.
-/// 
+///
 /// ## Sending
 /// A [`DynSender`] automatically implements [`Sends<M>`] for all messages `M` accepted by the
 /// protocol. This means that you can just use a [`DynSender`] instead of a statically typed sender in
 /// most cases. If you need to send a message that is not accepted by the protocol, you can use the
 /// `dyn_{...}`-send methods, which return an error if the message is not accepted.
-/// 
+///
 /// ## Generics
 /// The parameter `A` specifies the accepted messages of the dynamic sender. It can be specified
 /// using the [`macro@Accepts`] macro:
@@ -29,17 +30,29 @@ use std::{
 /// not accepted by the protocol. Only use these methods if you are sure that the protocol accepts
 /// the messages you send. If you are not sure, use the `try_transform` methods instead, which
 /// return an error if the protocol does not accept the messages.
-pub struct DynSender<A: ?Sized, W = ()> {
+pub struct DynSender<A, W = ()> {
     sender: BoxedSender<W>,
     t: PhantomData<fn() -> A>,
 }
 
-impl<A: ?Sized, W> DynSender<A, W> {
+/// A macro that defines a [`struct@DynSender`].
+///
+/// Example:
+/// - `DynSender![u32, u64]` == `DynSender<Set![u32, u64]>` == `DynSender<dyn Two<u32, u64>>`
+/// - `DynSender![]` == `DynSender<Set![]>` == `DynSender<dyn Empty>`
+#[macro_export]
+macro_rules! DynSender {
+    ($($tt:tt)*) => {
+        $crate::DynSender::<$crate::Set![$($tt)*]>
+    };
+}
+
+impl<A, W> DynSender<A, W> {
     /// Create a new `DynSender` from a statically typed sender.
     pub fn new<S>(sender: S) -> Self
     where
         S: SendsProtocol + DynSends<With = W>,
-        A: AcceptsSubsetOf<S::Protocol>,
+        A: SubsetOf<S::Protocol>,
     {
         Self::new_unchecked(sender)
     }
@@ -54,25 +67,22 @@ impl<A: ?Sized, W> DynSender<A, W> {
     }
 
     /// Transform the `DynSender` into a `DynSender` that accepts a subset of the messages.
-    pub fn transform<A2: ?Sized>(self) -> DynSender<A2, W>
+    pub fn transform<A2>(self) -> DynSender<A2, W>
     where
-        A2: AcceptsSubsetOf<A>,
+        A2: SubsetOf<A>,
     {
         DynSender::from_boxed_unchecked(self.sender)
     }
 
     /// Attempt to transform the `DynSender` into a `DynSender` that accepts a subset of the messages,
     /// failing if the protocol does not accept the messages.
-    pub fn try_transform<A2: ?Sized>(self) -> Result<DynSender<A2, W>, Self>
+    pub fn try_transform<A2>(self) -> Result<DynSender<A2, W>, Self>
     where
-        A2: AcceptsList,
+        A2: Members,
         W: 'static,
         A: 'static,
     {
-        if A2::accepts_list()
-            .iter()
-            .all(|t2| self.accepts_list().contains(t2))
-        {
+        if A2::members().iter().all(|t2| self.members().contains(t2)) {
             Ok(DynSender::from_boxed_unchecked(self.sender))
         } else {
             Err(self)
@@ -81,7 +91,7 @@ impl<A: ?Sized, W> DynSender<A, W> {
 
     /// Transform the `DynSender` into a `DynSender` that accepts a subset of the messages, without
     /// checking if the protocol accepts the messages.
-    pub fn transform_unchecked<T2: ?Sized>(self) -> DynSender<T2, W> {
+    pub fn transform_unchecked<A2>(self) -> DynSender<A2, W> {
         DynSender::from_boxed_unchecked(self.sender)
     }
 
@@ -109,7 +119,7 @@ impl<A: ?Sized, W> DynSender<A, W> {
     }
 }
 
-impl<A: ?Sized, W> IsSender for DynSender<A, W> {
+impl<A, W> IsSender for DynSender<A, W> {
     type With = W;
 
     fn is_closed(&self) -> bool {
@@ -133,7 +143,7 @@ impl<A: ?Sized, W> IsSender for DynSender<A, W> {
     }
 }
 
-impl<A: ?Sized, W> DynSends for DynSender<A, W>
+impl<A, W> DynSends for DynSender<A, W>
 where
     A: 'static,
     W: 'static,
@@ -159,8 +169,8 @@ where
         self.sender.dyn_try_send_boxed_msg_with(msg)
     }
 
-    fn accepts_list(&self) -> &'static [TypeId] {
-        self.sender.accepts_list()
+    fn members(&self) -> &'static [TypeId] {
+        self.sender.members()
     }
 
     fn clone_boxed(&self) -> BoxedSender<Self::With> {
@@ -172,9 +182,9 @@ where
     }
 }
 
-impl<A: ?Sized, W, M> Sends<M> for DynSender<A, W>
+impl<A, W, M> Sends<M> for DynSender<A, W>
 where
-    A: Accepts<M>,
+    A: Contains<M>,
     M: Send + 'static,
     W: Send + 'static,
 {
@@ -215,7 +225,7 @@ where
     }
 }
 
-impl<A: ?Sized, W: Debug> Debug for DynSender<A, W> {
+impl<A, W: Debug> Debug for DynSender<A, W> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DynSender")
             .field("sender", &"...")
@@ -224,7 +234,7 @@ impl<A: ?Sized, W: Debug> Debug for DynSender<A, W> {
     }
 }
 
-impl<A: ?Sized, W: 'static> Clone for DynSender<A, W> {
+impl<A, W: 'static> Clone for DynSender<A, W> {
     fn clone(&self) -> Self {
         Self {
             sender: self.sender.clone(),

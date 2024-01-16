@@ -102,6 +102,12 @@ pub use features::*;
 pub use message::*;
 pub use sending::*;
 
+/// Re-export of [`type_sets`](::type_sets).
+pub mod type_sets {
+    pub use type_sets::*;
+}
+pub use type_sets::Set;
+
 type AnyBox = Box<dyn std::any::Any + Send + 'static>;
 
 trait ResultExt<T, E> {

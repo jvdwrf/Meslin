@@ -40,26 +40,13 @@ pub fn derive(input: DeriveInput) -> syn::Result<TokenStream> {
             Ok(&fields[0].ty)
         })
         .collect::<Result<Vec<_>, _>>()?;
-    let len = variant_names.len();
 
     Ok(quote! {
         #[automatically_derived]
-        impl #impl_generics meslin::AcceptsList for #name #ty_generics #where_clause {
-            fn accepts_list() -> &'static [std::any::TypeId] {
-                static LOCK: std::sync::OnceLock<[std::any::TypeId; #len]> = std::sync::OnceLock::new();
-                LOCK.get_or_init(|| {
-                    [
-                        #(std::any::TypeId::of::<#variant_types>()),*,
-                    ]
-                })
-            }
-        }
-
-        #[automatically_derived]
-        impl #impl_generics meslin::DynFromInto for #name #ty_generics #where_clause {
+        impl #impl_generics ::meslin::DynFromInto for #name #ty_generics #where_clause {
             fn try_from_boxed_msg<_W: 'static>(
-                msg: meslin::BoxedMsg<_W>,
-            ) -> Result<(Self, _W), meslin::BoxedMsg<_W>> {
+                msg: ::meslin::BoxedMsg<_W>,
+            ) -> Result<(Self, _W), ::meslin::BoxedMsg<_W>> {
                 #(
                     let msg = match msg.downcast::<#variant_types>() {
                         Ok((msg, with)) => return Ok((Self::#variant_names(msg), with)),
@@ -69,18 +56,18 @@ pub fn derive(input: DeriveInput) -> syn::Result<TokenStream> {
                 Err(msg)
             }
 
-            fn into_boxed_msg<_W: Send + 'static>(self, with: _W) -> meslin::BoxedMsg<_W> {
+            fn into_boxed_msg<_W: Send + 'static>(self, with: _W) -> ::meslin::BoxedMsg<_W> {
                 match self {
                     #(
-                        Self::#variant_names(msg) => meslin::BoxedMsg::new(msg, with),
+                        Self::#variant_names(msg) => ::meslin::BoxedMsg::new(msg, with),
                     )*
                 }
             }
         }
 
-        #(
-            #[automatically_derived]
-            impl #impl_generics meslin::Accepts<#variant_types> for #name #ty_generics #where_clause {}
-        )*
+        #[automatically_derived]
+        impl #impl_generics ::meslin::type_sets::AsSet for #name #ty_generics #where_clause {
+            type Set = ::meslin::type_sets::Set![#(#variant_types),*];
+        }
     })
 }
