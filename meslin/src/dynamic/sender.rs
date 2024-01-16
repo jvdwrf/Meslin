@@ -10,20 +10,20 @@ use std::{
 /// A wrapper around a [`Box<dyn DynSends>`](DynSends) that allows for type-checked conversions.
 ///
 /// Any sender can be converted into a `DynSender`, as long as the protocol it sends implements
-/// [`DynFromInto`] and marker traits [`trait@Accepts<M>`]. This conversion is type-checked, so that
-/// it is impossible to create [`DynSender`]s that send messages not accepted by the protocol.
+/// [`trait@DynFromInto`] and marker traits [`AsSet`](type_sets::AsSet). This conversion is type-checked, so that
+/// it is impossible to create [`struct@DynSender`]s that send messages not accepted by the protocol.
 ///
 /// ## Sending
-/// A [`DynSender`] automatically implements [`Sends<M>`] for all messages `M` accepted by the
-/// protocol. This means that you can just use a [`DynSender`] instead of a statically typed sender in
+/// A [`struct@DynSender`] automatically implements [`Sends<M>`] for all messages `M` accepted by the
+/// protocol. This means that you can just use a [`struct@DynSender`] instead of a statically typed sender in
 /// most cases. If you need to send a message that is not accepted by the protocol, you can use the
 /// `dyn_{...}`-send methods, which return an error if the message is not accepted.
 ///
 /// ## Generics
 /// The parameter `A` specifies the accepted messages of the dynamic sender. It can be specified
-/// using the [`macro@Accepts`] macro:
-/// - `DynSender<Accepts![]>`
-/// - `DynSender<Accepts![Msg1, Msg2]>`
+/// using the [`macro@Set`] or the [`macro@DynSender`] macros:
+/// - `DynSender<Set![]>` == `DynSender![]`
+/// - `DynSender<Set![Msg1, Msg2]>` == `DynSender![Msg1, Msg2]`
 ///
 /// ## Unchecked methods
 /// The unchecked methods, **not** marked unsafe, allow creating of `DynSender`s that send messages

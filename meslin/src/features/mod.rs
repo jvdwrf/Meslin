@@ -39,7 +39,7 @@ mod derive {
     /// `#[from(forward)]` attribute.
     pub use meslin_derive::Message;
 
-    /// Macro to derive [`trait@DynFromInto`], [`AcceptsList`] and [`trait@Accepts<M>`] 
+    /// Macro to derive [`trait@DynFromInto`] and [`AsSet`](type_sets::AsSet)
     /// for an enum.
     /// 
     /// This derive macro implements all necessary traits to use the protocol with dynamic senders.

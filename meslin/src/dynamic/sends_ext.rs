@@ -8,7 +8,7 @@ use crate::*;
 /// Extension trait for [`DynSends`], providing methods for dynamic dispatch.
 ///
 /// This trait is automatically implemented for any senders that send a protocol which
-/// implements [`DynFromInto`]. It is also implemented for `Box<dyn DynSends>` and [`DynSender`].
+/// implements [`DynFromInto`]. It is also implemented for `Box<dyn DynSends>` and [`struct@DynSender`].
 pub trait DynSendsExt: DynSends + Sized {
     /// Check if the sender accepts a message.
     fn accepts(&self, msg_id: TypeId) -> bool {
@@ -23,7 +23,7 @@ pub trait DynSendsExt: DynSends + Sized {
         Box::new(self)
     }
 
-    /// Convert the sender into a [`DynSender`].
+    /// Convert the sender into a [`struct@DynSender`].
     fn into_dyn<A>(self) -> DynSender<A, Self::With>
     where
         Self: SendsProtocol,
@@ -32,7 +32,7 @@ pub trait DynSendsExt: DynSends + Sized {
         DynSender::new(self)
     }
 
-    /// Convert the sender into a [`DynSender`], without checking if the protocol accepts the messages.
+    /// Convert the sender into a [`struct@DynSender`], without checking if the protocol accepts the messages.
     fn into_dyn_unchecked<A>(self) -> DynSender<A, Self::With>
     where
         Self: SendsProtocol,

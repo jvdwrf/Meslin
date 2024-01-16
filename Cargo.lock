@@ -798,9 +798,9 @@ dependencies = [
 
 [[package]]
 name = "type-sets"
-version = "0.0.1"
+version = "0.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4d86c80f5c25cc2afc31eccf41af2cc93dc2400372f0cb19acf93bb085f94f6"
+checksum = "9816eddcee0aa008602118901652c18400eebdeb25f8dc11c24ed0b9b102f075"
 
 [[package]]
 name = "unicode-ident"

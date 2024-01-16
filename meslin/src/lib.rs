@@ -32,13 +32,13 @@
 //! can be received, the protocol must implement [`From<M>`] and [`TryInto<M>`]. These traits can
 //! be derived using the [`macro@From`] and [`macro@TryInto`] derive-macros.
 //!
-//! Optionally, the protocol can implement [`DynFromInto`] and [`trait@Accepts`] using the derive-macro [`macro@DynFromInto`].
-//! This allows for conversion of senders into dynamic senders. See [`DynSender`] for more information.
+//! Optionally, the protocol can implement [`DynFromInto`] and [`AsSet`](type_sets::AsSet) using the derive-macro [`macro@DynFromInto`].
+//! This allows for conversion of senders into dynamic senders. See [`struct@DynSender`] for more information.
 //!
 //! ### Senders
 //! Senders are responsible for defining the delivery mechanism of a protocol. They implement
 //! [`IsSender`] and can be used to send messages using [`Sends<M>`]. Examples of some default
-//! senders are [`mpmc::Sender`], [`priority::Sender`] and the [`DynSender`].
+//! senders are [`mpmc::Sender`], [`priority::Sender`] and the [`struct@DynSender`].
 //!
 //! Most senders have their associated type [`IsSender::With`] set to `()`, meaning that they
 //! don't require any additional data to send a message. However, some senders, like
@@ -61,19 +61,19 @@
 //! converting any sender into a [`dyn DynSends<W>`](DynSends). This allows for storage
 //! of different sender types in the same data structure, like `Vec<T>`.
 //!
-//! [`DynSender`] provides an abstraction over a [`Box<dyn DynSends>`], allowing for
+//! [`struct@DynSender`] provides an abstraction over a [`Box<dyn DynSends>`], allowing for
 //! type-checked dynamic dispatch and conversions. For example,
 //! if you have an [`mpmc::Sender<ProtocolA>`] and a [`broadcast::Sender<ProtocolB>`],
 //! both accepting messages `Msg1` and `Msg2`, they can both be converted into
-//! `DynSender<Accepts![Msg1, Msg2]>`. This dynamic sender then implements
+//! `DynSender<Set![Msg1, Msg2]>`. This dynamic sender then implements
 //! `Sends<Msg1> + Sends<Msg2>`.
 //!
-//! The [`macro@Accepts`] macro can be used to define the accepted messages of a dynamic sender. Some
+//! The [`macro@Set`] macro can be used to define the accepted messages of a dynamic sender. Some
 //! examples of dynamic sender conversions:
-//! - `Accepts![Msg1, Msg2]` == `dyn AcceptsTwo<Msg1, Msg2>`.
-//! - `DynSender<Accepts![Msg1, Msg2]>` can be converted into `DynSender<Accepts![Msg1]>`.
-//! - `mpmc::Sender<ProtocolA>` can be converted into `DynSender<Accepts![Msg1, ...]>` as long as
-//!   `ProtocolA` implements [`DynFromInto`] and `Accepts<Msg1> + Accepts<...> + ...`.
+//! - `Set![Msg1, Msg2]` == `dyn Two<Msg1, Msg2>`.
+//! - `DynSender<Set![Msg1, Msg2]>` can be converted into `DynSender<Set![Msg1]>`.
+//! - `mpmc::Sender<ProtocolA>` can be converted into `DynSender<Set![Msg1, ...]>` as long as
+//!   `ProtocolA` implements [`DynFromInto`] and `Contains<Msg1> + Contains<...> + ...`.
 //! 
 //! ## Cargo features
 //! The following features are available:
