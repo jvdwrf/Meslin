@@ -43,13 +43,13 @@
 //! Most senders have their associated type [`IsSender::With`] set to `()`, meaning that they
 //! don't require any additional data to send a message. However, some senders, like
 //! [`priority::Sender`] do require additional data.
-//! 
+//!
 //! ### Send methods
 //! The [`SendsExt`] and [`DynSendsExt`] traits provide a bunch of methods for sending messages.
 //! The following are the modifier keywords and their meaning:
 //! - `send`: The base method, that asynchronously sends a message and waits for space to become available.
 //! - `request`: After sending the message, the [`Message::Output`] is awaited and returned immeadeately.
-//! - `{...}_with`: Instead of using the default [`IsSender::With`] value, a custom value is given. 
+//! - `{...}_with`: Instead of using the default [`IsSender::With`] value, a custom value is given.
 //! - `try_{...}`:  Sends a message, returning an error if space is not available.
 //! - `{...}_blocking`: Sends a message, blocking the current thread until space becomes available.
 //! - `{...}_msg`: Instead of giving the [`Message::Input`], the message itself is given.
@@ -74,7 +74,7 @@
 //! - `DynSender<Set![Msg1, Msg2]>` can be converted into `DynSender<Set![Msg1]>`.
 //! - `mpmc::Sender<ProtocolA>` can be converted into `DynSender<Set![Msg1, ...]>` as long as
 //!   `ProtocolA` implements [`DynFromInto`] and `Contains<Msg1> + Contains<...> + ...`.
-//! 
+//!
 //! ## Cargo features
 //! The following features are available:
 //! - Default features: `["derive", "request", "mpmc", "broadcast", "priority"]`
@@ -90,35 +90,65 @@
 #![doc = include_str!("../examples/advanced.rs")]
 //! ```
 
-mod dynamic;
 mod errors;
-mod features;
-mod message;
-mod sending;
-
-pub use dynamic::*;
 pub use errors::*;
-pub use features::*;
+
+mod channels;
+#[allow(unused_imports)]
+pub use channels::*;
+
+mod message;
 pub use message::*;
+
+mod sending;
 pub use sending::*;
 
+mod wrappers;
+pub use wrappers::*;
+
+#[cfg(feature = "dynamic")]
+mod dynamic;
+#[cfg(feature = "dynamic")]
+pub use dynamic::*;
+
 /// Re-export of [`type_sets`](::type_sets).
-pub mod type_sets {
-    pub use type_sets::*;
-}
+pub use type_sets;
 pub use type_sets::Set;
 
-type AnyBox = Box<dyn std::any::Any + Send + 'static>;
+#[cfg(feature = "derive")]
+mod derive {
+    #[allow(unused_imports)]
+    use crate::*;
 
-trait ResultExt<T, E> {
-    fn unwrap_silent(self) -> T;
+    /// Derive macro for [`trati@Message`].
+    pub use meslin_derive::Message;
+
+    /// Derive macro for [`trait@FromIntoBoxed`].
+    pub use meslin_derive::FromIntoBoxed;
+
+    /// Re-export of [`derive_more::From`].
+    pub use derive_more::From;
+
+    /// Re-export of [`derive_more::TryInto`].
+    pub use derive_more::TryInto;
 }
+#[cfg(feature = "derive")]
+pub use derive::*;
 
-impl<T, E> ResultExt<T, E> for Result<T, E> {
-    fn unwrap_silent(self) -> T {
-        match self {
-            Ok(t) => t,
-            Err(_) => panic!("Unwrapping error {}", std::any::type_name::<Result<T, E>>()),
+mod util {
+    pub(crate) type AnyBox = Box<dyn std::any::Any + Send + 'static>;
+
+    pub(crate) trait ResultExt<T, E> {
+        fn unwrap_silent(self) -> T;
+    }
+
+    impl<T, E> ResultExt<T, E> for Result<T, E> {
+        fn unwrap_silent(self) -> T {
+            match self {
+                Ok(t) => t,
+                Err(_) => panic!("Unwrapping error {}", std::any::type_name::<Result<T, E>>()),
+            }
         }
     }
 }
+use util::*;

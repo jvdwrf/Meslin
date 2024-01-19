@@ -43,7 +43,7 @@ pub fn derive(input: DeriveInput) -> syn::Result<TokenStream> {
 
     Ok(quote! {
         #[automatically_derived]
-        impl #impl_generics ::meslin::DynFromInto for #name #ty_generics #where_clause {
+        impl #impl_generics ::meslin::FromIntoBoxed for #name #ty_generics #where_clause {
             fn try_from_boxed_msg<_W: 'static>(
                 msg: ::meslin::BoxedMsg<_W>,
             ) -> Result<(Self, _W), ::meslin::BoxedMsg<_W>> {

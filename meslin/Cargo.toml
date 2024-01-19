@@ -13,15 +13,14 @@ readme = "../README.md"
 [dependencies]
 futures = { version = "0.3", features = ["executor"] }
 thiserror = { version = "1" }
+type-sets = { version = "0.0.4" }
 
 meslin-derive = { version = "0.0.3", path = "../meslin-derive", optional = true }
-type-sets = { version = "0.0.2" }
-
+derive_more = { version = "1.0.0-beta.6", optional = true, default-features = false }
 tokio = { version = "1", features = ["sync"], optional = true, default-features = false }
 async-priority-channel = { version = "0.2", optional = true }
 flume = { version = "0.11", optional = true }
 oneshot = { version = "0.1", optional = true }
-derive_more = { version = "1.0.0-beta.6", optional = true, default-features = false }
 async-broadcast = { version = "0.6", optional = true }
 
 [dev-dependencies]
@@ -34,7 +33,8 @@ request = ["dep:oneshot"]
 broadcast = ["dep:async-broadcast"]
 watch = ["dep:tokio"]
 priority = ["dep:async-priority-channel"]
-default = ["derive", "request", "mpmc", "broadcast", "priority"]
+dynamic = []
+default = ["derive", "request", "mpmc", "broadcast", "priority", "dynamic"]
 
 [package.metadata.docs.rs]
 features = ["watch"]

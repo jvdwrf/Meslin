@@ -1,16 +1,16 @@
 use meslin::{
-    mpmc, priority, DynFromInto, DynSender, DynSendsExt, From, MappedWithSender, SendsExt, TryInto,
+    mpmc, priority, FromIntoBoxed, DynSender, IsDynSenderExt, From, MappedWithSender, IsSenderExt, TryInto,
     WithValueSender,
 };
 
-#[derive(Debug, From, TryInto, DynFromInto)]
+#[derive(Debug, From, TryInto, FromIntoBoxed)]
 enum P1 {
     A(i32),
     B(i64),
     C(i128),
 }
 
-#[derive(Debug, From, TryInto, DynFromInto)]
+#[derive(Debug, From, TryInto, FromIntoBoxed)]
 enum P2 {
     A(i16),
     B(i32),

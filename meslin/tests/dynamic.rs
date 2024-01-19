@@ -1,8 +1,7 @@
-use ::type_sets::Set;
 use meslin::*;
 
 /// Example protocol that can be used
-#[derive(Debug, From, TryInto, DynFromInto)]
+#[derive(Debug, From, TryInto, FromIntoBoxed)]
 pub enum MyProtocol {
     A(u32),
     B(HelloWorld),

@@ -4,8 +4,8 @@ use std::{fmt::Debug, marker::PhantomData};
 
 /// Trait that allows usage of dynamic senders for a protocol
 ///
-/// This is usually derived on an enum using [`macro@DynFromInto`]
-pub trait DynFromInto: Members + Sized {
+/// This is usually derived on an enum using [`macro@FromIntoBoxed`]
+pub trait FromIntoBoxed: Members + Sized {
     /// Attempt to convert a bxed [`Message`] into the full protocol (enum),
     /// failing if the message is not accepted.
     fn try_from_boxed_msg<W: 'static>(msg: BoxedMsg<W>) -> Result<(Self, W), BoxedMsg<W>>;
@@ -17,13 +17,13 @@ pub trait DynFromInto: Members + Sized {
 
 /// A boxed message with a `with` value, used for dynamic dispatch.
 pub struct BoxedMsg<W = ()> {
-    w: PhantomData<fn() -> W>,
-    inner: AnyBox,
+    msg: AnyBox,
+    _with: PhantomData<fn() -> W>,
 }
 
 impl<W> Debug for BoxedMsg<W> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("BoxedMsgWith").field(&self.inner).finish()
+        f.debug_tuple("BoxedMsgWith").field(&self.msg).finish()
     }
 }
 
@@ -34,8 +34,8 @@ impl<W> BoxedMsg<W> {
         W: Send + 'static,
     {
         Self {
-            w: PhantomData,
-            inner: Box::new((msg, with)),
+            _with: PhantomData,
+            msg: Box::new((msg, with)),
         }
     }
 
@@ -44,11 +44,11 @@ impl<W> BoxedMsg<W> {
         M: 'static,
         W: 'static,
     {
-        match self.inner.downcast::<(M, W)>() {
+        match self.msg.downcast::<(M, W)>() {
             Ok(t) => Ok(*t),
             Err(boxed) => Err(Self {
-                w: PhantomData,
-                inner: boxed,
+                _with: PhantomData,
+                msg: boxed,
             }),
         }
     }

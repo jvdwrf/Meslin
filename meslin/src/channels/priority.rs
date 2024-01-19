@@ -52,7 +52,7 @@ impl<P, O: Ord> IsSender for Sender<P, O> {
     }
 }
 
-impl<P: Send, O: Ord + Send> SendsProtocol for Sender<P, O> {
+impl<P: Send, O: Ord + Send> IsStaticSender for Sender<P, O> {
     type Protocol = P;
 
     async fn send_protocol_with(

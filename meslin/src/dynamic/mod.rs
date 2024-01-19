@@ -1,11 +1,11 @@
-mod sends_ext;
-pub use sends_ext::*;
-mod wrappers;
-pub use wrappers::*;
-mod sends;
-pub use sends::*;
-mod from_into;
-pub use from_into::*;
-mod sender;
-pub use sender::*;
+mod dyn_sending;
+pub use dyn_sending::*;
 
+mod dyn_from_into;
+pub use dyn_from_into::*;
+
+mod dyn_sender;
+pub use dyn_sender::*;
+
+mod errors;
+pub use errors::*;

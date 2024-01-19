@@ -27,7 +27,7 @@ pub trait IsSender {
 ///
 /// When this trait is implemented, [`Sends<M>`] is automatically implemented as well if
 /// [`SendsProtocol::Protocol`] implements `From<M>` and `TryInto<M>`.
-pub trait SendsProtocol: IsSender {
+pub trait IsStaticSender: IsSender {
     /// The protocol that can be sent to this sender.
     type Protocol;
 
@@ -82,7 +82,7 @@ pub trait Sends<M>: IsSender {
 
 impl<M, T> Sends<M> for T
 where
-    T: SendsProtocol,
+    T: IsStaticSender,
     T::Protocol: From<M> + TryInto<M>,
 {
     fn send_msg_with(
@@ -118,10 +118,10 @@ where
     }
 }
 
-/// Extension methods for [`IsSender`] / [`Sends<M>`].
-pub trait SendsExt: IsSender {
+/// Extension methods for [`IsSender`].
+pub trait IsSenderExt: IsSender {
     /// Send a message with a custom value, waiting asynchronously until space becomes available.
-    /// 
+    ///
     /// See the crate [docs](crate) under `#Send methods` for more information.
     fn send_msg_with<M>(
         &self,
@@ -135,7 +135,7 @@ pub trait SendsExt: IsSender {
     }
 
     /// Send a message with a custom value, blocking the current thread until space becomes available.
-    /// 
+    ///
     /// See the crate [docs](crate) under `#Send methods` for more information.
     fn send_msg_blocking_with<M>(
         &self,
@@ -149,7 +149,7 @@ pub trait SendsExt: IsSender {
     }
 
     /// Send a message with a custom value, returning an error if space is not available.
-    /// 
+    ///
     /// See the crate [docs](crate) under `#Send methods` for more information.
     fn try_send_msg_with<M>(
         &self,
@@ -163,7 +163,7 @@ pub trait SendsExt: IsSender {
     }
 
     /// Send a message using a default value, waiting asynchronously until space becomes available.
-    /// 
+    ///
     /// See the crate [docs](crate) under `#Send methods` for more information.
     fn send_msg<M: Message>(&self, msg: M) -> impl Future<Output = Result<(), SendError<M>>> + Send
     where
@@ -175,7 +175,7 @@ pub trait SendsExt: IsSender {
     }
 
     /// Send a message using a default value, blocking the current thread until space becomes available.
-    /// 
+    ///
     /// See the crate [docs](crate) under `#Send methods` for more information.
     fn send_msg_blocking<M: Message>(&self, msg: M) -> Result<(), SendError<M>>
     where
@@ -187,7 +187,7 @@ pub trait SendsExt: IsSender {
     }
 
     /// Send a message using a default value, returning an error if space is not available.
-    /// 
+    ///
     /// See the crate [docs](crate) under `#Send methods` for more information.
     fn try_send_msg<M: Message>(&self, msg: M) -> Result<(), TrySendError<M>>
     where
@@ -199,7 +199,7 @@ pub trait SendsExt: IsSender {
     }
 
     /// Send a message with a custom value, waiting asynchronously until space becomes available.
-    /// 
+    ///
     /// See the crate [docs](crate) under `#Send methods` for more information.
     fn send_with<M: Message>(
         &self,
@@ -221,7 +221,7 @@ pub trait SendsExt: IsSender {
     }
 
     /// Send a message with a custom value, blocking the current thread until space becomes available.
-    /// 
+    ///
     /// See the crate [docs](crate) under `#Send methods` for more information.
     fn send_blocking_with<M: Message>(
         &self,
@@ -239,7 +239,7 @@ pub trait SendsExt: IsSender {
     }
 
     /// Send a message with a custom value, returning an error if space is not available.
-    /// 
+    ///
     /// See the crate [docs](crate) under `#Send methods` for more information.
     fn try_send_with<M: Message>(
         &self,
@@ -257,7 +257,7 @@ pub trait SendsExt: IsSender {
     }
 
     /// Send a message using a default value, waiting asynchronously until space becomes available.
-    /// 
+    ///
     /// See the crate [docs](crate) under `#Send methods` for more information.
     fn send<M: Message>(
         &self,
@@ -272,7 +272,7 @@ pub trait SendsExt: IsSender {
     }
 
     /// Send a message using a default value, blocking the current thread until space becomes available.
-    /// 
+    ///
     /// See the crate [docs](crate) under `#Send methods` for more information.
     fn send_blocking<M: Message>(
         &self,
@@ -287,7 +287,7 @@ pub trait SendsExt: IsSender {
     }
 
     /// Send a message using a default value, returning an error if space is not available.
-    /// 
+    ///
     /// See the crate [docs](crate) under `#Send methods` for more information.
     fn try_send<M: Message>(
         &self,
@@ -303,7 +303,7 @@ pub trait SendsExt: IsSender {
 
     /// Send a message with a custom value, waiting asynchronously until space becomes available, and then
     /// await the [`Message::Output`].
-    /// 
+    ///
     /// See the crate [docs](crate) under `#Send methods` for more information.
     fn request_with<M: Message>(
         &self,
@@ -328,7 +328,7 @@ pub trait SendsExt: IsSender {
 
     /// Send a message using a default value, blocking the current thread until space becomes available, and then
     /// await the [`Message::Output`].
-    /// 
+    ///
     /// See the crate [docs](crate) under `#Send methods` for more information.
     fn request<M: Message>(
         &self,
@@ -353,7 +353,7 @@ pub trait SendsExt: IsSender {
         }
     }
 }
-impl<T: ?Sized> SendsExt for T where T: IsSender {}
+impl<T: ?Sized> IsSenderExt for T where T: IsSender {}
 
 //-------------------------------------
 // ResultFuture

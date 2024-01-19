@@ -52,7 +52,7 @@ impl<P> IsSender for Sender<P> {
     }
 }
 
-impl<P: Clone + Send + Sync> SendsProtocol for Sender<P> {
+impl<P: Clone + Send + Sync> IsStaticSender for Sender<P> {
     type Protocol = P;
 
     fn try_send_protocol_with(

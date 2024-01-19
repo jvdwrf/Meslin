@@ -3,6 +3,7 @@ use core::future::Future;
 use std::marker::PhantomData;
 
 /// A wrapper around a sender, which provides a default `with`-value.
+#[derive(Debug)]
 pub struct WithValueSender<T: IsSender> {
     sender: T,
     with: T::With,
@@ -66,9 +67,9 @@ where
     }
 }
 
-impl<T> SendsProtocol for WithValueSender<T>
+impl<T> IsStaticSender for WithValueSender<T>
 where
-    T: SendsProtocol,
+    T: IsStaticSender,
     T::With: Clone,
 {
     type Protocol = T::Protocol;
@@ -101,6 +102,7 @@ where
 
 /// A wrapper around a sender, which provides a mapping between the `with`-value of the sender and
 /// a custom `with`-value.
+#[derive(Debug)]
 pub struct MappedWithSender<T: IsSender, W> {
     sender: T,
     f1: fn(W) -> T::With,
@@ -166,9 +168,9 @@ impl<T: IsSender, W> IsSender for MappedWithSender<T, W> {
     }
 }
 
-impl<T, W> SendsProtocol for MappedWithSender<T, W>
+impl<T, W> IsStaticSender for MappedWithSender<T, W>
 where
-    T: SendsProtocol + Send + Sync,
+    T: IsStaticSender + Send + Sync,
 {
     type Protocol = T::Protocol;
 

@@ -17,7 +17,7 @@ use std::{
 macro_rules! DynSender {
     ($($msg:ty),* $(,)? $(; $with:ty)?) => {
         $crate::DynSender::<
-            $crate::Set![$($msg),*], 
+            $crate::Set![$($msg),*],
             $($with)?
         >
     };
@@ -47,7 +47,7 @@ macro_rules! DynSender {
 /// the messages you send. If you are not sure, use the `try_transform` methods instead, which
 /// return an error if the protocol does not accept the messages.
 pub struct DynSender<A, W = ()> {
-    sender: BoxedSender<W>,
+    sender: Box<dyn IsDynSender<With = W>>,
     t: PhantomData<fn() -> A>,
 }
 
@@ -55,7 +55,7 @@ impl<A, W> DynSender<A, W> {
     /// Create a new `DynSender` from a statically typed sender.
     pub fn new<S>(sender: S) -> Self
     where
-        S: SendsProtocol + DynSends<With = W>,
+        S: IsStaticSender + IsDynSender<With = W>,
         A: SubsetOf<S::Protocol>,
     {
         Self::new_unchecked(sender)
@@ -65,7 +65,7 @@ impl<A, W> DynSender<A, W> {
     /// accepts the messages.
     pub fn new_unchecked<S>(sender: S) -> Self
     where
-        S: DynSends<With = W>,
+        S: IsDynSender<With = W>,
     {
         Self::from_boxed_unchecked(Box::new(sender))
     }
@@ -101,7 +101,7 @@ impl<A, W> DynSender<A, W> {
 
     /// Convert a [`Box<dyn DynSends>`](DynSends) into a `DynSender`, without checking if the protocol
     /// accepts the messages.
-    pub fn from_boxed_unchecked(sender: BoxedSender<W>) -> Self {
+    pub fn from_boxed_unchecked(sender: Box<dyn IsDynSender<With = W>>) -> Self {
         Self {
             sender,
             t: PhantomData,
@@ -109,7 +109,7 @@ impl<A, W> DynSender<A, W> {
     }
 
     /// Convert into a [`Box<dyn DynSends>`](DynSends).
-    pub fn into_boxed_sender(self) -> BoxedSender<W> {
+    pub fn into_boxed_sender(self) -> Box<dyn IsDynSender<With = W>> {
         self.sender
     }
 
@@ -147,7 +147,7 @@ impl<A, W> IsSender for DynSender<A, W> {
     }
 }
 
-impl<A, W> DynSends for DynSender<A, W>
+impl<A, W> IsDynSender for DynSender<A, W>
 where
     A: 'static,
     W: 'static,
@@ -177,7 +177,7 @@ where
         self.sender.members()
     }
 
-    fn clone_boxed(&self) -> BoxedSender<Self::With> {
+    fn clone_boxed(&self) -> Box<dyn IsDynSender<With = Self::With>> {
         self.sender.clone_boxed()
     }
 
@@ -229,11 +229,11 @@ where
     }
 }
 
-impl<A, W: Debug> Debug for DynSender<A, W> {
+impl<A, W> Debug for DynSender<A, W> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DynSender")
-            .field("sender", &"...")
-            .field("t", &type_name::<A>())
+            .field("sender", &self.sender)
+            .field("accepts", &type_name::<A>())
             .finish()
     }
 }
