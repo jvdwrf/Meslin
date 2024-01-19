@@ -1,6 +1,6 @@
 [package]
 name = "meslin"
-version = "0.0.2"
+version = "0.0.4"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 keywords = ["actor", "messaging", "channel"]
@@ -14,7 +14,7 @@ readme = "../README.md"
 futures = { version = "0.3", features = ["executor"] }
 thiserror = { version = "1" }
 
-meslin-derive = { version = "0.0.2", path = "../meslin-derive", optional = true }
+meslin-derive = { version = "0.0.3", path = "../meslin-derive", optional = true }
 type-sets = { version = "0.0.2" }
 
 tokio = { version = "1", features = ["sync"], optional = true, default-features = false }

@@ -7,6 +7,22 @@ use std::{
     marker::PhantomData,
 };
 
+/// A macro that defines a [`struct@DynSender`].
+///
+/// Example:
+/// - `DynSender![u32, u64]` == `DynSender<Set![u32, u64]>` == `DynSender<dyn Two<u32, u64>>`
+/// - `DynSender![]` == `DynSender<Set![]>` == `DynSender<dyn Empty>`
+/// - `DynSender![u32, u64; i32]` == `DynSender<Set![u32, u64], i32>` == `DynSender<dyn Two<u32, u64>, i32>`
+#[macro_export]
+macro_rules! DynSender {
+    ($($msg:ty),* $(,)? $(; $with:ty)?) => {
+        $crate::DynSender::<
+            $crate::Set![$($msg),*], 
+            $($with)?
+        >
+    };
+}
+
 /// A wrapper around a [`Box<dyn DynSends>`](DynSends) that allows for type-checked conversions.
 ///
 /// Any sender can be converted into a `DynSender`, as long as the protocol it sends implements
@@ -33,18 +49,6 @@ use std::{
 pub struct DynSender<A, W = ()> {
     sender: BoxedSender<W>,
     t: PhantomData<fn() -> A>,
-}
-
-/// A macro that defines a [`struct@DynSender`].
-///
-/// Example:
-/// - `DynSender![u32, u64]` == `DynSender<Set![u32, u64]>` == `DynSender<dyn Two<u32, u64>>`
-/// - `DynSender![]` == `DynSender<Set![]>` == `DynSender<dyn Empty>`
-#[macro_export]
-macro_rules! DynSender {
-    ($($tt:tt)*) => {
-        $crate::DynSender::<$crate::Set![$($tt)*]>
-    };
 }
 
 impl<A, W> DynSender<A, W> {
