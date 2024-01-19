@@ -100,11 +100,11 @@ pub use channels::*;
 mod message;
 pub use message::*;
 
-mod sending;
-pub use sending::*;
+mod send_traits;
+pub use send_traits::*;
 
-mod wrappers;
-pub use wrappers::*;
+mod sender_wrappers;
+pub use sender_wrappers::*;
 
 #[cfg(feature = "dynamic")]
 mod dynamic;

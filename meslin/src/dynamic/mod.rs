@@ -1,8 +1,8 @@
-mod dyn_sending;
-pub use dyn_sending::*;
+mod send_traits;
+pub use send_traits::*;
 
-mod dyn_from_into;
-pub use dyn_from_into::*;
+mod boxed_msg;
+pub use boxed_msg::*;
 
 mod dyn_sender;
 pub use dyn_sender::*;
