@@ -1,7 +1,7 @@
 use meslin::*;
 
 /// Example protocol that can be used
-#[derive(Debug, From, TryInto, FromIntoBoxed)]
+#[derive(Debug, From, TryInto, DynProtocol)]
 pub enum MyProtocol {
     A(u32),
     B(HelloWorld),
@@ -18,13 +18,13 @@ async fn test() {
 
     let _ = sender.clone().into_dyn::<Set![u32]>();
 
-    let boxed_sender = sender.clone().into_boxed();
+    let boxed_sender = sender.clone().boxed();
     boxed_sender
         .dyn_send::<HelloWorld>("Hello world!")
         .await
         .unwrap();
 
-    let dyn_sender = <DynSender![HelloWorld]>::from_boxed_unchecked(boxed_sender);
+    let dyn_sender = <DynSender![HelloWorld]>::from_inner_unchecked(boxed_sender);
     dyn_sender
         .dyn_send::<HelloWorld>("Hello world!")
         .await

@@ -6,7 +6,7 @@ extern crate syn;
 mod from_into_boxed;
 mod message;
 
-#[proc_macro_derive(FromIntoBoxed, attributes())]
+#[proc_macro_derive(DynProtocol, attributes())]
 pub fn derive_from_into_boxed(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
     from_into_boxed::derive(input)

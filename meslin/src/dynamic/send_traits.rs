@@ -5,10 +5,9 @@ use std::{
     any::{Any, TypeId},
     fmt::Debug,
 };
-use type_sets::SubsetOf;
 
 /// Automatically implemented when [`IsStaticSender`] is implemented for a protocol
-/// that implements [`FromIntoBoxed`].
+/// that implements [`DynProtocol`].
 pub trait IsDynSender: IsSender + Send + 'static + Debug {
     fn dyn_send_boxed_msg_with(
         &self,
@@ -25,6 +24,7 @@ pub trait IsDynSender: IsSender + Send + 'static + Debug {
         msg: BoxedMsg<Self::With>,
     ) -> Result<(), DynTrySendError<BoxedMsg<Self::With>>>;
 
+    /// Get the message types that the sender accepts.
     fn members(&self) -> &'static [TypeId];
     fn clone_boxed(&self) -> Box<dyn IsDynSender<With = Self::With>>;
     fn as_any(&self) -> &dyn Any;
@@ -33,7 +33,7 @@ pub trait IsDynSender: IsSender + Send + 'static + Debug {
 impl<T> IsDynSender for T
 where
     T: IsStaticSender + Clone + Send + Sync + 'static + Debug,
-    T::Protocol: FromIntoBoxed,
+    T::Protocol: DynProtocol,
     T::With: Send,
 {
     fn dyn_send_boxed_msg_with(
@@ -41,7 +41,7 @@ where
         msg: BoxedMsg<Self::With>,
     ) -> BoxFuture<Result<(), DynSendError<BoxedMsg<Self::With>>>> {
         Box::pin(async move {
-            let (protocol, with) = <T::Protocol as FromIntoBoxed>::try_from_boxed_msg(msg)
+            let (protocol, with) = <T::Protocol as DynProtocol>::try_from_boxed_msg(msg)
                 .map_err(DynSendError::NotAccepted)?;
 
             T::send_protocol_with(self, protocol, with).await.map_err(
@@ -160,7 +160,7 @@ impl<T: 'static> Clone for Box<dyn IsDynSender<With = T>> {
 impl<W, T> From<T> for Box<dyn IsDynSender<With = W>>
 where
     T: IsStaticSender<With = W> + Clone + Send + Sync + 'static + Debug,
-    T::Protocol: FromIntoBoxed,
+    T::Protocol: DynProtocol,
     W: Send + 'static,
 {
     fn from(sender: T) -> Self {
@@ -168,10 +168,16 @@ where
     }
 }
 
+impl<W, T> From<DynSender<T, W>> for Box<dyn IsDynSender<With = W>> {
+    fn from(sender: DynSender<T, W>) -> Self {
+        sender.into_inner()
+    }
+}
+
 /// Extension trait for [`IsDynSender`], providing methods for dynamic dispatch.
 ///
 /// This trait is automatically implemented for any senders that send a protocol which
-/// implements [`FromIntoBoxed`]. It is also implemented for `Box<dyn DynSends>` and [`struct@DynSender`].
+/// implements [`DynProtocol`]. It is also implemented for `Box<dyn DynSends>` and [`struct@DynSender`].
 pub trait IsDynSenderExt: IsDynSender + Sized {
     /// Check if the sender accepts a message.
     fn accepts(&self, msg_id: TypeId) -> bool {
@@ -179,46 +185,8 @@ pub trait IsDynSenderExt: IsDynSender + Sized {
     }
 
     /// Convert the sender into a boxed sender.
-    fn into_boxed(self) -> Box<dyn IsDynSender<With = Self::With>> {
+    fn boxed(self) -> Box<dyn IsDynSender<With = Self::With>> {
         Box::new(self)
-    }
-
-    /// Convert the sender into a [`struct@DynSender`].
-    fn into_dyn<A>(self) -> DynSender<A, Self::With>
-    where
-        Self: IsStaticSender,
-        A: SubsetOf<Self::Protocol>,
-    {
-        DynSender::new(self)
-    }
-
-    /// Convert the sender into a [`struct@DynSender`], without checking if the protocol accepts the messages.
-    fn into_dyn_unchecked<A>(self) -> DynSender<A, Self::With>
-    where
-        Self: IsStaticSender,
-    {
-        DynSender::new_unchecked(self)
-    }
-
-    /// Map the `with` value of the sender to `()`, by providing the default `with` to use.
-    fn with(self, with: Self::With) -> WithValueSender<Self>
-    where
-        Self: IsStaticSender,
-        Self::With: Clone,
-    {
-        WithValueSender::new(self, with)
-    }
-
-    /// Map the `with` value of the sender to `W`, by providing conversion functions.
-    fn map_with<W>(
-        self,
-        f1: fn(W) -> Self::With,
-        f2: fn(Self::With) -> W,
-    ) -> MappedWithSender<Self, W>
-    where
-        Self: IsStaticSender + Send + Sync,
-    {
-        MappedWithSender::new(self, f1, f2)
     }
 
     /// Like [`SendsExt::send_msg_with`], but fails if the message is not accepted by the protocol.

@@ -98,6 +98,17 @@ where
             Err(e) => Err(e.map(|(protocol, _)| (protocol, with))),
         }
     }
+
+    fn send_protocol_blocking_with(
+        this: &Self,
+        protocol: Self::Protocol,
+        with: Self::With,
+    ) -> Result<(), SendError<(Self::Protocol, Self::With)>> {
+        match T::send_protocol_blocking_with(&this.sender, protocol, this.with.clone()) {
+            Ok(()) => Ok(()),
+            Err(e) => Err(e.map(|(protocol, _)| (protocol, with))),
+        }
+    }
 }
 
 /// A wrapper around a sender, which provides a mapping between the `with`-value of the sender and
@@ -194,6 +205,17 @@ where
         with: W,
     ) -> Result<(), TrySendError<(Self::Protocol, Self::With)>> {
         match T::try_send_protocol_with(&this.sender, protocol, (this.f1)(with)) {
+            Ok(()) => Ok(()),
+            Err(e) => Err(e.map(|(protocol, with)| (protocol, (this.f2)(with)))),
+        }
+    }
+
+    fn send_protocol_blocking_with(
+        this: &Self,
+        protocol: Self::Protocol,
+        with: W,
+    ) -> Result<(), SendError<(Self::Protocol, Self::With)>> {
+        match T::send_protocol_blocking_with(&this.sender, protocol, (this.f1)(with)) {
             Ok(()) => Ok(()),
             Err(e) => Err(e.map(|(protocol, with)| (protocol, (this.f2)(with)))),
         }

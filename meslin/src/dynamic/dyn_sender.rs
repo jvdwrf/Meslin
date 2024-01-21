@@ -23,11 +23,12 @@ macro_rules! DynSender {
     };
 }
 
-/// A wrapper around a [`Box<dyn DynSends>`](DynSends) that allows for type-checked conversions.
+/// A wrapper around a [`Box<dyn IsDynSender>`](IsDynSender) that allows for dynamic, type-checked sending.
 ///
-/// Any sender can be converted into a `DynSender`, as long as the protocol it sends implements
-/// [`trait@DynFromInto`] and marker traits [`AsSet`](type_sets::AsSet). This conversion is type-checked, so that
-/// it is impossible to create [`struct@DynSender`]s that send messages not accepted by the protocol.
+/// Any sender can be converted into a dynamic sender, as long as the protocol it sends implements
+/// [`trait@DynProtocol`] and [`AsSet`](type_sets::AsSet) (Derived using [`derive@DynProtocol`]).
+/// This allows for type-checked conversions from a regular sender to a dynamic one, disallowing the
+/// creation of [`struct@DynSender`]s that send messages not accepted by the protocol.
 ///
 /// ## Sending
 /// A [`struct@DynSender`] automatically implements [`Sends<M>`] for all messages `M` accepted by the
@@ -36,27 +37,29 @@ macro_rules! DynSender {
 /// `dyn_{...}`-send methods, which return an error if the message is not accepted.
 ///
 /// ## Generics
-/// The parameter `A` specifies the accepted messages of the dynamic sender. It can be specified
+/// The parameter `T` specifies the accepted messages of the dynamic sender. It can be specified
 /// using the [`macro@Set`] or the [`macro@DynSender`] macros:
 /// - `DynSender<Set![]>` == `DynSender![]`
 /// - `DynSender<Set![Msg1, Msg2]>` == `DynSender![Msg1, Msg2]`
 ///
+/// The parameter `W` specifies the type of the `with` parameter of the `send_with` methods.
+///
 /// ## Unchecked methods
-/// The unchecked methods, **not** marked unsafe, allow creating of `DynSender`s that send messages
+/// The unchecked methods, **not** marked unsafe, allow creating [`DynSender`]s that send messages
 /// not accepted by the protocol. Only use these methods if you are sure that the protocol accepts
 /// the messages you send. If you are not sure, use the `try_transform` methods instead, which
-/// return an error if the protocol does not accept the messages.
-pub struct DynSender<A, W = ()> {
+/// return an error at runtime if the protocol does not accept the messages.
+pub struct DynSender<T, W = ()> {
     sender: Box<dyn IsDynSender<With = W>>,
-    t: PhantomData<fn() -> A>,
+    t: PhantomData<fn() -> T>,
 }
 
-impl<A, W> DynSender<A, W> {
+impl<T, W> DynSender<T, W> {
     /// Create a new `DynSender` from a statically typed sender.
     pub fn new<S>(sender: S) -> Self
     where
         S: IsStaticSender + IsDynSender<With = W>,
-        A: SubsetOf<S::Protocol>,
+        T: SubsetOf<S::Protocol>,
     {
         Self::new_unchecked(sender)
     }
@@ -67,27 +70,27 @@ impl<A, W> DynSender<A, W> {
     where
         S: IsDynSender<With = W>,
     {
-        Self::from_boxed_unchecked(Box::new(sender))
+        Self::from_inner_unchecked(Box::new(sender))
     }
 
-    /// Transform the `DynSender` into a `DynSender` that accepts a subset of the messages.
-    pub fn transform<A2>(self) -> DynSender<A2, W>
+    /// Transform the `DynSender` into one that accepts a subset of the messages.
+    pub fn transform<R>(self) -> DynSender<R, W>
     where
-        A2: SubsetOf<A>,
+        R: SubsetOf<T>,
     {
-        DynSender::from_boxed_unchecked(self.sender)
+        DynSender::from_inner_unchecked(self.sender)
     }
 
     /// Attempt to transform the `DynSender` into a `DynSender` that accepts a subset of the messages,
     /// failing if the protocol does not accept the messages.
-    pub fn try_transform<A2>(self) -> Result<DynSender<A2, W>, Self>
+    pub fn try_transform<R>(self) -> Result<DynSender<R, W>, Self>
     where
-        A2: Members,
+        R: Members,
         W: 'static,
-        A: 'static,
+        T: 'static,
     {
-        if A2::members().iter().all(|t2| self.members().contains(t2)) {
-            Ok(DynSender::from_boxed_unchecked(self.sender))
+        if R::members().iter().all(|t2| self.members().contains(t2)) {
+            Ok(DynSender::from_inner_unchecked(self.sender))
         } else {
             Err(self)
         }
@@ -95,13 +98,28 @@ impl<A, W> DynSender<A, W> {
 
     /// Transform the `DynSender` into a `DynSender` that accepts a subset of the messages, without
     /// checking if the protocol accepts the messages.
-    pub fn transform_unchecked<A2>(self) -> DynSender<A2, W> {
-        DynSender::from_boxed_unchecked(self.sender)
+    pub fn transform_unchecked<R>(self) -> DynSender<R, W> {
+        DynSender::from_inner_unchecked(self.sender)
+    }
+
+    pub fn try_from_inner(
+        sender: Box<dyn IsDynSender<With = W>>,
+    ) -> Result<Self, Box<dyn IsDynSender<With = W>>>
+    where
+        T: Members,
+        W: 'static,
+        T: 'static,
+    {
+        if T::members().iter().all(|t2| sender.members().contains(t2)) {
+            Ok(Self::from_inner_unchecked(sender))
+        } else {
+            Err(sender)
+        }
     }
 
     /// Convert a [`Box<dyn DynSends>`](DynSends) into a `DynSender`, without checking if the protocol
     /// accepts the messages.
-    pub fn from_boxed_unchecked(sender: Box<dyn IsDynSender<With = W>>) -> Self {
+    pub fn from_inner_unchecked(sender: Box<dyn IsDynSender<With = W>>) -> Self {
         Self {
             sender,
             t: PhantomData,
@@ -109,7 +127,7 @@ impl<A, W> DynSender<A, W> {
     }
 
     /// Convert into a [`Box<dyn DynSends>`](DynSends).
-    pub fn into_boxed_sender(self) -> Box<dyn IsDynSender<With = W>> {
+    pub fn into_inner(self) -> Box<dyn IsDynSender<With = W>> {
         self.sender
     }
 
@@ -123,7 +141,7 @@ impl<A, W> DynSender<A, W> {
     }
 }
 
-impl<A, W> IsSender for DynSender<A, W> {
+impl<T, W> IsSender for DynSender<T, W> {
     type With = W;
 
     fn is_closed(&self) -> bool {
@@ -147,9 +165,9 @@ impl<A, W> IsSender for DynSender<A, W> {
     }
 }
 
-impl<A, W> IsDynSender for DynSender<A, W>
+impl<T, W> IsDynSender for DynSender<T, W>
 where
-    A: 'static,
+    T: 'static,
     W: 'static,
 {
     fn dyn_send_boxed_msg_with(
@@ -186,9 +204,9 @@ where
     }
 }
 
-impl<A, W, M> Sends<M> for DynSender<A, W>
+impl<T, W, M> Sends<M> for DynSender<T, W>
 where
-    A: Contains<M>,
+    T: Contains<M>,
     M: Send + 'static,
     W: Send + 'static,
 {
@@ -229,16 +247,16 @@ where
     }
 }
 
-impl<A, W> Debug for DynSender<A, W> {
+impl<T, W> Debug for DynSender<T, W> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DynSender")
             .field("sender", &self.sender)
-            .field("accepts", &type_name::<A>())
+            .field("accepts", &type_name::<T>())
             .finish()
     }
 }
 
-impl<A, W: 'static> Clone for DynSender<A, W> {
+impl<T, W: 'static> Clone for DynSender<T, W> {
     fn clone(&self) -> Self {
         Self {
             sender: self.sender.clone(),

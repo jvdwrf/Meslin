@@ -1,16 +1,16 @@
 use meslin::{
-    mpmc, priority, FromIntoBoxed, DynSender, IsDynSenderExt, From, MappedWithSender, IsSenderExt, TryInto,
-    WithValueSender,
+    mpmc, priority, DynSender, From, DynProtocol, IntoDynSender, IsSenderExt, MappedWithSender,
+    TryInto, WithValueSender,
 };
 
-#[derive(Debug, From, TryInto, FromIntoBoxed)]
+#[derive(Debug, From, TryInto, DynProtocol)]
 enum P1 {
     A(i32),
     B(i64),
     C(i128),
 }
 
-#[derive(Debug, From, TryInto, FromIntoBoxed)]
+#[derive(Debug, From, TryInto, DynProtocol)]
 enum P2 {
     A(i16),
     B(i32),
@@ -31,11 +31,11 @@ async fn main() {
     // Create a vector of dynamic senders: (Checked at compile time)
     let senders: Vec<DynSender![i32, i64]> = vec![
         // For sender1, use `into_dyn` to transform it into a DynSender
-        sender1.into_dyn(),
+        sender1.into_dyn_sender(),
         // For sender2, use `with` / `map_with` and then `into_dyn` to transform it into a DynSender
         // This sender will always send `15` as the priority
-        sender2.clone().with(15).into_dyn(),
-        sender2.map_with(|_| 15, |_| ()).into_dyn(),
+        sender2.clone().with(15).into_dyn_sender(),
+        sender2.map_with(|_| 15, |_| ()).into_dyn_sender(),
     ];
 
     // Send a `i32` or `i64` to the senders

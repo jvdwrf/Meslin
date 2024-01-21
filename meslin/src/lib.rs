@@ -94,7 +94,6 @@ mod errors;
 pub use errors::*;
 
 mod channels;
-#[allow(unused_imports)]
 pub use channels::*;
 
 mod message;
@@ -111,20 +110,21 @@ mod dynamic;
 #[cfg(feature = "dynamic")]
 pub use dynamic::*;
 
-/// Re-export of [`type_sets`](::type_sets).
-pub use type_sets;
-pub use type_sets::Set;
-
 #[cfg(feature = "derive")]
 mod derive {
     #[allow(unused_imports)]
     use crate::*;
 
-    /// Derive macro for [`trati@Message`].
+    /// Derive macro for [`trait@Message`].
+    ///
+    /// This derives a basic message implementation, with `Input = Self` and `Output = ()`.
     pub use meslin_derive::Message;
 
-    /// Derive macro for [`trait@FromIntoBoxed`].
-    pub use meslin_derive::FromIntoBoxed;
+    #[cfg(feature = "dynamic")]
+    /// Derive macro for [`trait@DynProtocol`].
+    ///
+    /// This derives [`trait@DynProtocol`] and [`AsSet`](type_sets::AsSet).
+    pub use meslin_derive::DynProtocol;
 
     /// Re-export of [`derive_more::From`].
     pub use derive_more::From;

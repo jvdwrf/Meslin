@@ -119,7 +119,28 @@ where
 }
 
 /// Extension methods for [`IsSender`].
-pub trait IsSenderExt: IsSender {
+pub trait IsSenderExt: IsSender + Sized {
+    /// Map the `with` value of the sender to `()`, by providing the default `with` to use.
+    fn with(self, with: Self::With) -> WithValueSender<Self>
+    where
+        Self: IsStaticSender,
+        Self::With: Clone,
+    {
+        WithValueSender::new(self, with)
+    }
+
+    /// Map the `with` value of the sender to `W`, by providing conversion functions.
+    fn map_with<W>(
+        self,
+        f1: fn(W) -> Self::With,
+        f2: fn(Self::With) -> W,
+    ) -> MappedWithSender<Self, W>
+    where
+        Self: IsStaticSender + Send + Sync,
+    {
+        MappedWithSender::new(self, f1, f2)
+    }
+
     /// Send a message with a custom value, waiting asynchronously until space becomes available.
     ///
     /// See the crate [docs](crate) under `#Send methods` for more information.
@@ -353,7 +374,7 @@ pub trait IsSenderExt: IsSender {
         }
     }
 }
-impl<T: ?Sized> IsSenderExt for T where T: IsSender {}
+impl<T: ?Sized> IsSenderExt for T where T: IsSender + Sized {}
 
 //-------------------------------------
 // ResultFuture
