@@ -1,5 +1,6 @@
 #![allow(clippy::type_complexity)]
 #![deny(unsafe_code)]
+// #![feature(return_type_notation)]
 //! # Meslin
 //! Meslin is a Rust library offering ergonomic wrappers for channels like [`mpmc`]
 //! and [`broadcast`]. It's designed to ease the creation of actor systems by adding

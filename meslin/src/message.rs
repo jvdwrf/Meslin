@@ -85,8 +85,8 @@ macro_rules! common_messages {
 
 common_messages!(0;
     char, String, bool, &'static str,
-    usize, u8, u16, u32, u64,
-    isize, i8, i16, i32, i64,
+    usize, u8, u16, u32, u64, u128,
+    isize, i8, i16, i32, i64, i128,
     f32, f64,
     NonZeroUsize, NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64,
     NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64,

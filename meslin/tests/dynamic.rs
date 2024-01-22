@@ -16,7 +16,9 @@ pub struct HelloWorld(pub String);
 async fn test() {
     let (sender, _receiver) = mpmc::unbounded::<MyProtocol>();
 
-    let _ = sender.clone().into_dyn::<Set![u32]>();
+    let dyn_sender: DynSender![u32, HelloWorld] = sender.clone().into_sender();
+    do_something(sender.clone()).await;
+    do_something(dyn_sender).await;
 
     let boxed_sender = sender.clone().boxed();
     boxed_sender
@@ -35,4 +37,9 @@ async fn test() {
 
     let dyn_sender = dyn_sender.try_transform::<Set![HelloWorld]>().unwrap();
     dyn_sender.try_transform::<Set![u64, u32]>().unwrap_err();
+}
+
+async fn do_something(sender: impl IntoSender<DynSender![HelloWorld]>) {
+    let sender = sender.into_sender();
+    sender.send::<HelloWorld>("Hello world!").await.unwrap();
 }

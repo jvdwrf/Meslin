@@ -121,22 +121,15 @@ where
 /// Extension methods for [`IsSender`].
 pub trait IsSenderExt: IsSender + Sized {
     /// Map the `with` value of the sender to `()`, by providing the default `with` to use.
-    fn with(self, with: Self::With) -> WithValueSender<Self>
-    where
-        Self: IsStaticSender,
-        Self::With: Clone,
-    {
+    fn with(self, with: Self::With) -> WithValueSender<Self> {
         WithValueSender::new(self, with)
     }
 
     /// Map the `with` value of the sender to `W`, by providing conversion functions.
-    fn map_with<W>(
-        self,
-        f1: fn(W) -> Self::With,
-        f2: fn(Self::With) -> W,
-    ) -> MappedWithSender<Self, W>
+    fn map_with<W, F1, F2>(self, f1: F1, f2: F2) -> MappedWithSender<Self, W, F1, F2>
     where
-        Self: IsStaticSender + Send + Sync,
+        F1: Fn(W) -> Self::With,
+        F2: Fn(Self::With) -> W,
     {
         MappedWithSender::new(self, f1, f2)
     }

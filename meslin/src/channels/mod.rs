@@ -12,5 +12,5 @@ pub mod oneshot;
 #[cfg(feature = "request")]
 pub use oneshot::Request;
 
-#[cfg(feature = "derive")]
+#[cfg(feature = "watch")]
 pub mod watch;

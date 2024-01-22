@@ -25,7 +25,7 @@ pub trait IsDynSender: IsSender + Send + 'static + Debug {
     ) -> Result<(), DynTrySendError<BoxedMsg<Self::With>>>;
 
     /// Get the message types that the sender accepts.
-    fn members(&self) -> &'static [TypeId];
+    fn accepts_messages(&self) -> Vec<TypeId>;
     fn clone_boxed(&self) -> Box<dyn IsDynSender<With = Self::With>>;
     fn as_any(&self) -> &dyn Any;
 }
@@ -79,7 +79,8 @@ where
         })
     }
 
-    fn members(&self) -> &'static [TypeId] {
+    /// Get a list of messages that can be sent to the underlying sender.
+    fn accepts_messages(&self) -> Vec<TypeId> {
         <T::Protocol as Members>::members()
     }
 
@@ -138,8 +139,8 @@ impl<W: 'static> IsDynSender for Box<dyn IsDynSender<With = W>> {
         (**self).dyn_try_send_boxed_msg_with(msg)
     }
 
-    fn members(&self) -> &'static [TypeId] {
-        (**self).members()
+    fn accepts_messages(&self) -> Vec<TypeId> {
+        (**self).accepts_messages()
     }
 
     fn clone_boxed(&self) -> Box<dyn IsDynSender<With = Self::With>> {
@@ -180,8 +181,8 @@ impl<W, T> From<DynSender<T, W>> for Box<dyn IsDynSender<With = W>> {
 /// implements [`DynProtocol`]. It is also implemented for `Box<dyn DynSends>` and [`struct@DynSender`].
 pub trait IsDynSenderExt: IsDynSender + Sized {
     /// Check if the sender accepts a message.
-    fn accepts(&self, msg_id: TypeId) -> bool {
-        self.members().contains(&msg_id)
+    fn accepts<M: 'static>(&self) -> bool {
+        self.accepts_messages().contains(&TypeId::of::<M>())
     }
 
     /// Convert the sender into a boxed sender.

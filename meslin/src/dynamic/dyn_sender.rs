@@ -89,7 +89,7 @@ impl<T, W> DynSender<T, W> {
         W: 'static,
         T: 'static,
     {
-        if R::members().iter().all(|t2| self.members().contains(t2)) {
+        if R::members().iter().all(|t2| self.accepts_messages().contains(t2)) {
             Ok(DynSender::from_inner_unchecked(self.sender))
         } else {
             Err(self)
@@ -110,7 +110,7 @@ impl<T, W> DynSender<T, W> {
         W: 'static,
         T: 'static,
     {
-        if T::members().iter().all(|t2| sender.members().contains(t2)) {
+        if T::members().iter().all(|t2| sender.accepts_messages().contains(t2)) {
             Ok(Self::from_inner_unchecked(sender))
         } else {
             Err(sender)
@@ -191,8 +191,8 @@ where
         self.sender.dyn_try_send_boxed_msg_with(msg)
     }
 
-    fn members(&self) -> &'static [TypeId] {
-        self.sender.members()
+    fn accepts_messages(&self) -> Vec<TypeId> {
+        self.sender.accepts_messages()
     }
 
     fn clone_boxed(&self) -> Box<dyn IsDynSender<With = Self::With>> {

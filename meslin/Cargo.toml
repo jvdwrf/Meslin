@@ -13,7 +13,7 @@ readme = "../README.md"
 [dependencies]
 futures = { version = "0.3", features = ["executor"] }
 thiserror = { version = "1" }
-type-sets = { version = "0.0.4" }
+type-sets = { version = "0.0.6" }
 
 meslin-derive = { version = "0.0.3", path = "../meslin-derive", optional = true }
 derive_more = { version = "1.0.0-beta.6", optional = true, default-features = false }

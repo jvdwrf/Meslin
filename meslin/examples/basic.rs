@@ -1,4 +1,4 @@
-use meslin::{mpmc, From, Message, Request, IsSenderExt, TryInto};
+use meslin::*;
 
 // Create a simple, custom message type
 #[derive(Debug, From, Message)]
