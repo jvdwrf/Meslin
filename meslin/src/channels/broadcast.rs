@@ -59,14 +59,14 @@ impl<P: Clone + Send + Sync> IsStaticSender for Sender<P> {
         this: &Self,
         protocol: Self::Protocol,
         _with: (),
-    ) -> Result<(), TrySendError<(P, ())>> {
+    ) -> Result<(), SendNowError<(P, ())>> {
         this.sender
             .try_broadcast(protocol)
             .map(|_| ())
             .map_err(|e| match e {
-                async_broadcast::TrySendError::Full(p) => TrySendError::Full((p, ())),
-                async_broadcast::TrySendError::Closed(p) => TrySendError::Closed((p, ())),
-                async_broadcast::TrySendError::Inactive(p) => TrySendError::Closed((p, ())),
+                async_broadcast::TrySendError::Full(p) => SendNowError::Full((p, ())),
+                async_broadcast::TrySendError::Closed(p) => SendNowError::Closed((p, ())),
+                async_broadcast::TrySendError::Inactive(p) => SendNowError::Closed((p, ())),
             })
     }
 

@@ -46,13 +46,15 @@ async fn test() {
 
     let boxed_sender = sender.clone().boxed();
     boxed_sender
-        .dyn_send::<HelloWorld>("Hello world!")
+        .send::<HelloWorld>("Hello world!")
+        .dynamic()
         .await
         .unwrap();
 
     let dyn_sender = <DynSender![HelloWorld]>::from_inner_unchecked(boxed_sender);
     dyn_sender
-        .dyn_send::<HelloWorld>("Hello world!")
+        .send::<HelloWorld>("Hello world!")
+        .dynamic()
         .await
         .unwrap();
 

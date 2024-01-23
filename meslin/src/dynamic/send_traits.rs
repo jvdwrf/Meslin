@@ -9,25 +9,87 @@ use std::{
 /// Automatically implemented when [`IsStaticSender`] is implemented for a protocol
 /// that implements [`DynProtocol`].
 pub trait IsDynSender: IsSender + Send + 'static + Debug {
+    #[doc(hidden)]
     fn dyn_send_boxed_msg_with(
         &self,
         msg: BoxedMsg<Self::With>,
     ) -> BoxFuture<Result<(), DynSendError<BoxedMsg<Self::With>>>>;
 
+    #[doc(hidden)]
     fn dyn_send_boxed_msg_blocking_with(
         &self,
         msg: BoxedMsg<Self::With>,
     ) -> Result<(), DynSendError<BoxedMsg<Self::With>>>;
 
+    #[doc(hidden)]
     fn dyn_try_send_boxed_msg_with(
         &self,
         msg: BoxedMsg<Self::With>,
-    ) -> Result<(), DynTrySendError<BoxedMsg<Self::With>>>;
+    ) -> Result<(), DynSendNowError<BoxedMsg<Self::With>>>;
 
     /// Get the message types that the sender accepts.
     fn accepts_messages(&self) -> Vec<TypeId>;
+    #[doc(hidden)]
     fn clone_boxed(&self) -> Box<dyn IsDynSender<With = Self::With>>;
+    #[doc(hidden)]
     fn as_any(&self) -> &dyn Any;
+
+    #[doc(hidden)]
+    /// Like [`SendsExt::send_msg_with`], but fails if the message is not accepted by the protocol.
+    fn dyn_send_msg_with<M>(
+        &self,
+        msg: M,
+        with: Self::With,
+    ) -> impl Future<Output = Result<(), DynSendError<(M, Self::With)>>> + Send
+    where
+        M: Send + 'static,
+        Self::With: Send + 'static,
+        Self: Sized,
+    {
+        let fut = self.dyn_send_boxed_msg_with(BoxedMsg::new(msg, with));
+        async {
+            match fut.await {
+                Ok(()) => Ok(()),
+                Err(e) => Err(e.downcast::<M>().unwrap_silent()),
+            }
+        }
+    }
+
+    #[doc(hidden)]
+    /// Like [`SendsExt::send_msg_blocking_with`], but fails if the message is not accepted by the protocol.
+    fn dyn_send_msg_blocking_with<M>(
+        &self,
+        msg: M,
+        with: Self::With,
+    ) -> Result<(), DynSendError<(M, Self::With)>>
+    where
+        M: Send + 'static,
+        Self::With: Send + 'static,
+        Self: Sized,
+    {
+        match self.dyn_send_boxed_msg_blocking_with(BoxedMsg::new(msg, with)) {
+            Ok(()) => Ok(()),
+            Err(e) => Err(e.downcast::<M>().unwrap_silent()),
+        }
+    }
+
+    #[doc(hidden)]
+    /// Like [`SendsExt::try_send_msg_with`], but fails if the message is not accepted by the protocol.
+    fn dyn_try_send_msg_with<M>(
+        &self,
+        msg: M,
+        with: Self::With,
+    ) -> Result<(), DynSendNowError<(M, Self::With)>>
+    where
+        M: Send + 'static,
+        Self::With: Send + 'static,
+        Self: Sized,
+    {
+        match self.dyn_try_send_boxed_msg_with(BoxedMsg::new(msg, with)) {
+            Ok(()) => Ok(()),
+            Err(e) => Err(e.downcast::<M>().unwrap()),
+        }
+    }
 }
 
 impl<T> IsDynSender for T
@@ -65,16 +127,16 @@ where
     fn dyn_try_send_boxed_msg_with(
         &self,
         msg: BoxedMsg<Self::With>,
-    ) -> Result<(), DynTrySendError<BoxedMsg<Self::With>>> {
+    ) -> Result<(), DynSendNowError<BoxedMsg<Self::With>>> {
         let (protocol, with) =
-            T::Protocol::try_from_boxed_msg(msg).map_err(DynTrySendError::NotAccepted)?;
+            T::Protocol::try_from_boxed_msg(msg).map_err(DynSendNowError::NotAccepted)?;
 
         T::try_send_protocol_with(self, protocol, with).map_err(|e| match e {
-            TrySendError::Closed((protocol, with)) => {
-                DynTrySendError::Closed(protocol.into_boxed_msg(with))
+            SendNowError::Closed((protocol, with)) => {
+                DynSendNowError::Closed(protocol.into_boxed_msg(with))
             }
-            TrySendError::Full((protocol, with)) => {
-                DynTrySendError::Full(protocol.into_boxed_msg(with))
+            SendNowError::Full((protocol, with)) => {
+                DynSendNowError::Full(protocol.into_boxed_msg(with))
             }
         })
     }
@@ -135,7 +197,7 @@ impl<W: 'static> IsDynSender for Box<dyn IsDynSender<With = W>> {
     fn dyn_try_send_boxed_msg_with(
         &self,
         msg: BoxedMsg<Self::With>,
-    ) -> Result<(), DynTrySendError<BoxedMsg<Self::With>>> {
+    ) -> Result<(), DynSendNowError<BoxedMsg<Self::With>>> {
         (**self).dyn_try_send_boxed_msg_with(msg)
     }
 
@@ -143,6 +205,7 @@ impl<W: 'static> IsDynSender for Box<dyn IsDynSender<With = W>> {
         (**self).accepts_messages()
     }
 
+    #[doc(hidden)]
     fn clone_boxed(&self) -> Box<dyn IsDynSender<With = Self::With>> {
         (**self).clone_boxed()
     }
@@ -188,204 +251,6 @@ pub trait IsDynSenderExt: IsDynSender + Sized {
     /// Convert the sender into a boxed sender.
     fn boxed(self) -> Box<dyn IsDynSender<With = Self::With>> {
         Box::new(self)
-    }
-
-    /// Like [`SendsExt::send_msg_with`], but fails if the message is not accepted by the protocol.
-    fn dyn_send_msg_with<M>(
-        &self,
-        msg: M,
-        with: Self::With,
-    ) -> impl Future<Output = Result<(), DynSendError<(M, Self::With)>>> + Send
-    where
-        M: Send + 'static,
-        Self::With: Send + 'static,
-    {
-        let fut = self.dyn_send_boxed_msg_with(BoxedMsg::new(msg, with));
-        async {
-            match fut.await {
-                Ok(()) => Ok(()),
-                Err(e) => Err(e.downcast::<M>().unwrap_silent()),
-            }
-        }
-    }
-
-    /// Like [`SendsExt::send_msg_blocking_with`], but fails if the message is not accepted by the protocol.
-    fn dyn_send_msg_blocking_with<M>(
-        &self,
-        msg: M,
-        with: Self::With,
-    ) -> Result<(), DynSendError<(M, Self::With)>>
-    where
-        M: Send + 'static,
-        Self::With: Send + 'static,
-    {
-        match self.dyn_send_boxed_msg_blocking_with(BoxedMsg::new(msg, with)) {
-            Ok(()) => Ok(()),
-            Err(e) => Err(e.downcast::<M>().unwrap_silent()),
-        }
-    }
-
-    /// Like [`SendsExt::try_send_msg_with`], but fails if the message is not accepted by the protocol.
-    fn dyn_try_send_msg_with<M>(
-        &self,
-        msg: M,
-        with: Self::With,
-    ) -> Result<(), DynTrySendError<(M, Self::With)>>
-    where
-        M: Send + 'static,
-        Self::With: Send + 'static,
-    {
-        match self.dyn_try_send_boxed_msg_with(BoxedMsg::new(msg, with)) {
-            Ok(()) => Ok(()),
-            Err(e) => Err(e.downcast::<M>().unwrap()),
-        }
-    }
-
-    /// Like [`SendsExt::send_with`], but fails if the message is not accepted by the protocol.
-    fn dyn_send_msg<M>(&self, msg: M) -> impl Future<Output = Result<(), DynSendError<M>>> + Send
-    where
-        M: Send + 'static,
-        Self::With: Default + Send + 'static,
-    {
-        let fut = self.dyn_send_msg_with(msg, Default::default());
-        async {
-            match fut.await {
-                Ok(()) => Ok(()),
-                Err(e) => Err(e.map(|(t, _)| t)),
-            }
-        }
-    }
-
-    /// Like [`SendsExt::send_blocking_with`], but fails if the message is not accepted by the protocol.
-    fn dyn_send_msg_blocking<M>(&self, msg: M) -> Result<(), DynSendError<M>>
-    where
-        M: Send + 'static,
-        Self::With: Default + Send + 'static,
-    {
-        match self.dyn_send_msg_blocking_with(msg, Default::default()) {
-            Ok(()) => Ok(()),
-            Err(e) => Err(e.map(|(t, _)| t)),
-        }
-    }
-
-    /// Like [`SendsExt::try_send_msg_with`], but fails if the message is not accepted by the protocol.
-    fn dyn_try_send_msg<M>(&self, msg: M) -> Result<(), DynTrySendError<M>>
-    where
-        M: Send + 'static,
-        Self::With: Default + Send + 'static,
-    {
-        match self.dyn_try_send_msg_with(msg, Default::default()) {
-            Ok(()) => Ok(()),
-            Err(e) => Err(e.map(|(t, _)| t)),
-        }
-    }
-
-    /// Like [`SendsExt::send_with`], but fails if the message is not accepted by the protocol.
-    fn dyn_send_with<M: Message>(
-        &self,
-        msg: impl Into<M::Input>,
-        with: Self::With,
-    ) -> impl Future<Output = Result<M::Output, DynSendError<(M::Input, Self::With)>>> + Send
-    where
-        M: Send + 'static,
-        Self::With: Send + 'static,
-        M::Output: Send,
-    {
-        let (msg, output) = M::create(msg.into());
-        let fut = self.dyn_send_msg_with(msg, with);
-        async {
-            match fut.await {
-                Ok(()) => Ok(output),
-                Err(e) => Err(e.map(|(t, w)| (t.cancel(output), w))),
-            }
-        }
-    }
-
-    /// Like [`SendsExt::send_blocking_with`], but fails if the message is not accepted by the protocol.
-    fn dyn_send_blocking_with<M: Message>(
-        &self,
-        msg: impl Into<M::Input>,
-        with: Self::With,
-    ) -> Result<M::Output, DynSendError<(M::Input, Self::With)>>
-    where
-        M: Send + 'static,
-        Self::With: Send + 'static,
-        M::Output: Send,
-    {
-        let (msg, output) = M::create(msg.into());
-        match self.dyn_send_msg_blocking_with(msg, with) {
-            Ok(()) => Ok(output),
-            Err(e) => Err(e.map(|(t, w)| (t.cancel(output), w))),
-        }
-    }
-
-    /// Like [`SendsExt::try_send_with`], but fails if the message is not accepted by the protocol.
-    fn dyn_try_send_with<M: Message>(
-        &self,
-        msg: impl Into<M::Input>,
-        with: Self::With,
-    ) -> Result<M::Output, DynTrySendError<(M::Input, Self::With)>>
-    where
-        M: Send + 'static,
-        Self::With: Send + 'static,
-        M::Output: Send,
-    {
-        let (msg, output) = M::create(msg.into());
-        match self.dyn_try_send_msg_with(msg, with) {
-            Ok(()) => Ok(output),
-            Err(e) => Err(e.map(|(t, w)| (t.cancel(output), w))),
-        }
-    }
-
-    /// Like [`SendsExt::send_with`], but fails if the message is not accepted by the protocol.
-    fn dyn_send<M: Message>(
-        &self,
-        msg: impl Into<M::Input>,
-    ) -> impl Future<Output = Result<M::Output, DynSendError<M::Input>>> + Send
-    where
-        M: Send + 'static,
-        Self::With: Default + Send + 'static,
-        M::Output: Send,
-    {
-        let fut = self.dyn_send_with::<M>(msg, Default::default());
-        async {
-            match fut.await {
-                Ok(output) => Ok(output),
-                Err(e) => Err(e.map(|(t, _)| t)),
-            }
-        }
-    }
-
-    /// Like [`SendsExt::send_blocking_with`], but fails if the message is not accepted by the protocol.
-    fn dyn_send_blocking<M: Message>(
-        &self,
-        msg: impl Into<M::Input>,
-    ) -> Result<M::Output, DynSendError<M::Input>>
-    where
-        M: Send + 'static,
-        Self::With: Default + Send + 'static,
-        M::Output: Send,
-    {
-        match self.dyn_send_blocking_with::<M>(msg, Default::default()) {
-            Ok(output) => Ok(output),
-            Err(e) => Err(e.map(|(t, _)| t)),
-        }
-    }
-
-    /// Like [`SendsExt::try_send_with`], but fails if the message is not accepted by the protocol.
-    fn dyn_try_send<M: Message>(
-        &self,
-        msg: impl Into<M::Input>,
-    ) -> Result<M::Output, DynTrySendError<M::Input>>
-    where
-        M: Send + 'static,
-        Self::With: Default + Send + 'static,
-        M::Output: Send,
-    {
-        match self.dyn_try_send_with::<M>(msg, Default::default()) {
-            Ok(output) => Ok(output),
-            Err(e) => Err(e.map(|(t, _)| t)),
-        }
     }
 }
 impl<T> IsDynSenderExt for T where T: IsDynSender {}

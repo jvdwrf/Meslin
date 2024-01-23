@@ -47,7 +47,7 @@ pub trait IsStaticSender: IsSender {
         this: &Self,
         protocol: Self::Protocol,
         with: Self::With,
-    ) -> Result<(), TrySendError<(Self::Protocol, Self::With)>>;
+    ) -> Result<(), SendNowError<(Self::Protocol, Self::With)>>;
 
     fn send_protocol_blocking_with(
         this: &Self,
@@ -83,7 +83,7 @@ pub trait Sends<M>: IsSender {
         this: &Self,
         msg: M,
         with: Self::With,
-    ) -> Result<(), TrySendError<(M, Self::With)>>;
+    ) -> Result<(), SendNowError<(M, Self::With)>>;
 }
 
 impl<M, T> Sends<M> for T
@@ -118,7 +118,7 @@ where
         this: &Self,
         msg: M,
         with: Self::With,
-    ) -> Result<(), TrySendError<(M, Self::With)>> {
+    ) -> Result<(), SendNowError<(M, Self::With)>> {
         T::try_send_protocol_with(this, T::Protocol::from(msg), with)
             .map_err(|e| e.map(|(t, w)| (t.try_into().unwrap_silent(), w)))
     }

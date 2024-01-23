@@ -25,7 +25,7 @@ impl<'a, S: IsSender, M> SendMsgWithFut<'a, S, M> {
     }
 
     #[inline]
-    pub fn now(self) -> Result<(), TrySendError<(M, S::With)>>
+    pub fn now(self) -> Result<(), SendNowError<(M, S::With)>>
     where
         S: Sends<M>,
     {
@@ -85,7 +85,7 @@ impl<'a, S: IsSender, M> SendMsgFut<'a, S, M> {
     }
 
     #[inline]
-    pub fn now(self) -> Result<(), TrySendError<M>>
+    pub fn now(self) -> Result<(), SendNowError<M>>
     where
         S: Sends<M>,
         S::With: Default,
@@ -160,7 +160,7 @@ impl<'a, S: IsSender, M: Message> SendWithFut<'a, S, M> {
     }
 
     #[inline]
-    pub fn now(self) -> Result<M::Output, TrySendError<(M::Input, S::With)>>
+    pub fn now(self) -> Result<M::Output, SendNowError<(M::Input, S::With)>>
     where
         S: Sends<M>,
     {
@@ -298,7 +298,7 @@ impl<'a, S: IsSender, M: Message> SendFut<'a, S, M> {
     }
 
     #[inline]
-    pub fn now(self) -> Result<M::Output, TrySendError<M::Input>>
+    pub fn now(self) -> Result<M::Output, SendNowError<M::Input>>
     where
         S: Sends<M>,
         S::With: Default,
@@ -307,6 +307,11 @@ impl<'a, S: IsSender, M: Message> SendFut<'a, S, M> {
             Ok(output) => Ok(output),
             Err(e) => Err(e.map(|(t, _)| t)),
         }
+    }
+
+    #[inline]
+    pub fn dynamic(self) -> DynSendFut<'a, S, M> {
+        DynSendFut(self)
     }
 }
 
@@ -415,7 +420,7 @@ impl<'a, S: IsSender, M> DynSendMsgWithFut<'a, S, M> {
     }
 
     #[inline]
-    pub fn now(self) -> Result<(), DynTrySendError<(M, S::With)>>
+    pub fn now(self) -> Result<(), DynSendNowError<(M, S::With)>>
     where
         S: IsDynSender,
         M: Send + 'static,
@@ -477,7 +482,7 @@ impl<'a, S: IsSender, M> SendDynMsgFut<'a, S, M> {
     }
 
     #[inline]
-    pub fn now(self) -> Result<(), DynTrySendError<M>>
+    pub fn now(self) -> Result<(), DynSendNowError<M>>
     where
         S: IsDynSender,
         M: Send + 'static,
@@ -539,7 +544,7 @@ impl<'a, S: IsSender, M: Message> DynSendWithFut<'a, S, M> {
     }
 
     #[inline]
-    pub fn now(self) -> Result<M::Output, DynTrySendError<(M::Input, S::With)>>
+    pub fn now(self) -> Result<M::Output, DynSendNowError<(M::Input, S::With)>>
     where
         S: IsDynSender,
         M: Send + 'static,
@@ -663,7 +668,7 @@ impl<'a, S: IsSender, M: Message> DynSendFut<'a, S, M> {
     }
 
     #[inline]
-    pub fn now(self) -> Result<M::Output, DynTrySendError<M::Input>>
+    pub fn now(self) -> Result<M::Output, DynSendNowError<M::Input>>
     where
         S: IsDynSender,
         M: Send + 'static,

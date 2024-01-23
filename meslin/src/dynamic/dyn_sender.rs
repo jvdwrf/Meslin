@@ -187,7 +187,7 @@ where
     fn dyn_try_send_boxed_msg_with(
         &self,
         msg: BoxedMsg<Self::With>,
-    ) -> Result<(), DynTrySendError<BoxedMsg<Self::With>>> {
+    ) -> Result<(), DynSendNowError<BoxedMsg<Self::With>>> {
         self.sender.dyn_try_send_boxed_msg_with(msg)
     }
 
@@ -233,15 +233,15 @@ where
         this: &Self,
         msg: M,
         with: Self::With,
-    ) -> Result<(), TrySendError<(M, Self::With)>> {
+    ) -> Result<(), SendNowError<(M, Self::With)>> {
         match this.sender.dyn_try_send_msg_with(msg, with) {
             Ok(()) => Ok(()),
             Err(e) => Err(match e {
-                DynTrySendError::NotAccepted(_e) => {
+                DynSendNowError::NotAccepted(_e) => {
                     panic!("Message not accepted: {}", type_name::<(M, Self::With)>())
                 }
-                DynTrySendError::Closed((msg, with)) => TrySendError::Closed((msg, with)),
-                DynTrySendError::Full((msg, with)) => TrySendError::Full((msg, with)),
+                DynSendNowError::Closed((msg, with)) => SendNowError::Closed((msg, with)),
+                DynSendNowError::Full((msg, with)) => SendNowError::Full((msg, with)),
             }),
         }
     }

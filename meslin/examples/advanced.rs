@@ -26,7 +26,7 @@ async fn main() {
     sender2.send::<i32>(8).await.unwrap(); // Uses `u32::default()` as priority
 
     // Or we can map the senders to dynamic senders: (Compile time checked)
-    let dyn_senders: Vec<DynSender![i32, i64]> = vec![
+    let senders: Vec<DynSender![i32, i64]> = vec![
         // For sender1, use `into_dyn` to transform it into a DynSender
         sender1.into_sender(),
         // For sender2, use `with` and then `into_dyn` to transform it into a DynSender
@@ -35,34 +35,34 @@ async fn main() {
     ];
 
     // And then send messages:
-    dyn_senders[0].send::<i32>(8).await.unwrap();
-    dyn_senders[1].send::<i32>(8).await.unwrap();
+    senders[0].send::<i32>(8).await.unwrap();
+    senders[1].send::<i32>(8).await.unwrap();
     // dyn_senders[0].send::<i16>(8).await.unwrap(); // <- Doesn't compile!
 
     // We can still find basic information about the senders:
-    assert_eq!(dyn_senders[0].len(), 2);
-    assert_eq!(dyn_senders[1].len(), 3);
-    assert_eq!(dyn_senders[0].capacity(), None);
-    assert_eq!(dyn_senders[1].capacity(), None);
+    assert_eq!(senders[0].len(), 2);
+    assert_eq!(senders[1].len(), 3);
+    assert_eq!(senders[0].capacity(), None);
+    assert_eq!(senders[1].capacity(), None);
 
     // We can also still find out whether messages are accepted:
-    assert!(dyn_senders[0].accepts::<i16>());
-    assert!(!dyn_senders[0].accepts::<i128>());
-    assert!(dyn_senders[1].accepts::<i128>());
-    assert!(!dyn_senders[1].accepts::<i16>());
+    assert!(senders[0].accepts::<i16>());
+    assert!(!senders[0].accepts::<i128>());
+    assert!(senders[1].accepts::<i128>());
+    assert!(!senders[1].accepts::<i16>());
 
     // Which means we can use the `dyn_send` methods.
     // Instead of not compiling, these methods return an error:
-    dyn_senders[0].dyn_send::<i16>(8i16).await.unwrap();
-    dyn_senders[0].dyn_send::<i128>(8i128).await.unwrap_err(); // <- Runtime error!
-    dyn_senders[1].dyn_send::<i128>(8i128).await.unwrap();
-    dyn_senders[1].dyn_send::<i16>(8i16).await.unwrap_err(); // <- Runtime error!
+    senders[0].send::<i16>(8i16).dynamic().await.unwrap();
+    senders[0].send::<i128>(8i128).dynamic().await.unwrap_err(); // <- Runtime error!
+    senders[1].send::<i128>(8i128).dynamic().await.unwrap();
+    senders[1].send::<i16>(8i16).dynamic().await.unwrap_err(); // <- Runtime error!
 
     // And the senders can be converted back into their original types:
-    let _sender1 = dyn_senders[0]
+    let _sender1 = senders[0]
         .downcast_ref::<mpmc::Sender<Protocol1>>()
         .unwrap();
-    let _sender2 = dyn_senders[1]
+    let _sender2 = senders[1]
         .downcast_ref::<WithValueSender<priority::Sender<Protocol2, u32>>>()
         .unwrap();
 }

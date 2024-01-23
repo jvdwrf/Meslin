@@ -95,7 +95,7 @@ where
         this: &Self,
         protocol: Self::Protocol,
         with: (),
-    ) -> Result<(), TrySendError<(Self::Protocol, Self::With)>> {
+    ) -> Result<(), SendNowError<(Self::Protocol, Self::With)>> {
         match T::try_send_protocol_with(&this.inner, protocol, this.with.clone()) {
             Ok(()) => Ok(()),
             Err(e) => Err(e.map(|(protocol, _)| (protocol, with))),
@@ -224,7 +224,7 @@ where
         this: &Self,
         protocol: Self::Protocol,
         with: W,
-    ) -> Result<(), TrySendError<(Self::Protocol, Self::With)>> {
+    ) -> Result<(), SendNowError<(Self::Protocol, Self::With)>> {
         match T::try_send_protocol_with(&this.sender, protocol, (this.f1)(with)) {
             Ok(()) => Ok(()),
             Err(e) => Err(e.map(|(protocol, with)| (protocol, (this.f2)(with)))),

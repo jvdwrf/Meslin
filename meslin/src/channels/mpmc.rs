@@ -76,10 +76,10 @@ impl<P: Send> IsStaticSender for Sender<P> {
         this: &Self,
         protocol: Self::Protocol,
         _with: (),
-    ) -> Result<(), TrySendError<(Self::Protocol, ())>> {
+    ) -> Result<(), SendNowError<(Self::Protocol, ())>> {
         this.sender.try_send(protocol).map_err(|e| match e {
-            flume::TrySendError::Disconnected(protocol) => TrySendError::Closed((protocol, ())),
-            flume::TrySendError::Full(protocol) => TrySendError::Full((protocol, ())),
+            flume::TrySendError::Disconnected(protocol) => SendNowError::Closed((protocol, ())),
+            flume::TrySendError::Full(protocol) => SendNowError::Full((protocol, ())),
         })
     }
 }

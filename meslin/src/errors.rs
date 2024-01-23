@@ -18,14 +18,14 @@ impl<T> SendError<T> {
 
 /// Error that is returned when a channel is closed or full.
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Error)]
-pub enum TrySendError<T> {
+pub enum SendNowError<T> {
     #[error("Channel is closed: Failed to send message {0:?}.")]
     Closed(T),
     #[error("Channel is full: Failed to send message {0:?}.")]
     Full(T),
 }
 
-impl<T> TrySendError<T> {
+impl<T> SendNowError<T> {
     pub fn into_inner(self) -> T {
         match self {
             Self::Closed(t) => t,
@@ -33,10 +33,10 @@ impl<T> TrySendError<T> {
         }
     }
 
-    pub(crate) fn map<T2>(self, fun: impl FnOnce(T) -> T2) -> TrySendError<T2> {
+    pub(crate) fn map<T2>(self, fun: impl FnOnce(T) -> T2) -> SendNowError<T2> {
         match self {
-            Self::Closed(t) => TrySendError::Closed(fun(t)),
-            Self::Full(t) => TrySendError::Full(fun(t)),
+            Self::Closed(t) => SendNowError::Closed(fun(t)),
+            Self::Full(t) => SendNowError::Full(fun(t)),
         }
     }
 }
@@ -55,5 +55,3 @@ impl<T, E> From<SendError<T>> for RequestError<T, E> {
         Self::Full(e.0)
     }
 }
-
-

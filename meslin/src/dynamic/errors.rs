@@ -49,7 +49,7 @@ impl<T> From<SendError<T>> for DynSendError<T> {
 
 /// Error that is returned when a channel is closed, full, or the message was not accepted.
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Error)]
-pub enum DynTrySendError<T> {
+pub enum DynSendNowError<T> {
     #[error("Message {0:?} was not accepted.")]
     NotAccepted(T),
     #[error("Channel is closed: Failed to send message {0:?}.")]
@@ -58,7 +58,7 @@ pub enum DynTrySendError<T> {
     Full(T),
 }
 
-impl<T> DynTrySendError<T> {
+impl<T> DynSendNowError<T> {
     pub fn into_inner(self) -> T {
         match self {
             Self::NotAccepted(t) => t,
@@ -67,45 +67,45 @@ impl<T> DynTrySendError<T> {
         }
     }
 
-    pub(crate) fn map<U>(self, f: impl FnOnce(T) -> U) -> DynTrySendError<U> {
+    pub(crate) fn map<U>(self, f: impl FnOnce(T) -> U) -> DynSendNowError<U> {
         match self {
-            Self::NotAccepted(t) => DynTrySendError::NotAccepted(f(t)),
-            Self::Closed(t) => DynTrySendError::Closed(f(t)),
-            Self::Full(t) => DynTrySendError::Full(f(t)),
+            Self::NotAccepted(t) => DynSendNowError::NotAccepted(f(t)),
+            Self::Closed(t) => DynSendNowError::Closed(f(t)),
+            Self::Full(t) => DynSendNowError::Full(f(t)),
         }
     }
 }
 
-impl<W: 'static> DynTrySendError<BoxedMsg<W>> {
-    pub(crate) fn downcast<M: 'static>(self) -> Result<DynTrySendError<(M, W)>, Self> {
+impl<W: 'static> DynSendNowError<BoxedMsg<W>> {
+    pub(crate) fn downcast<M: 'static>(self) -> Result<DynSendNowError<(M, W)>, Self> {
         match self {
             Self::NotAccepted(t) => match t.downcast::<M>() {
-                Ok(t) => Ok(DynTrySendError::NotAccepted(t)),
-                Err(t) => Err(DynTrySendError::NotAccepted(t)),
+                Ok(t) => Ok(DynSendNowError::NotAccepted(t)),
+                Err(t) => Err(DynSendNowError::NotAccepted(t)),
             },
             Self::Closed(t) => match t.downcast::<M>() {
-                Ok(t) => Ok(DynTrySendError::Closed(t)),
-                Err(t) => Err(DynTrySendError::Closed(t)),
+                Ok(t) => Ok(DynSendNowError::Closed(t)),
+                Err(t) => Err(DynSendNowError::Closed(t)),
             },
             Self::Full(t) => match t.downcast::<M>() {
-                Ok(t) => Ok(DynTrySendError::Full(t)),
-                Err(t) => Err(DynTrySendError::Full(t)),
+                Ok(t) => Ok(DynSendNowError::Full(t)),
+                Err(t) => Err(DynSendNowError::Full(t)),
             },
         }
     }
 }
 
-impl<T> From<SendError<T>> for DynTrySendError<T> {
+impl<T> From<SendError<T>> for DynSendNowError<T> {
     fn from(SendError(t): SendError<T>) -> Self {
         Self::Closed(t)
     }
 }
 
-impl<T> From<TrySendError<T>> for DynTrySendError<T> {
-    fn from(e: TrySendError<T>) -> Self {
+impl<T> From<SendNowError<T>> for DynSendNowError<T> {
+    fn from(e: SendNowError<T>) -> Self {
         match e {
-            TrySendError::Closed(t) => Self::Closed(t),
-            TrySendError::Full(t) => Self::Full(t),
+            SendNowError::Closed(t) => Self::Closed(t),
+            SendNowError::Full(t) => Self::Full(t),
         }
     }
 }

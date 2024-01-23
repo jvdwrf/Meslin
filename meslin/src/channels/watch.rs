@@ -60,10 +60,10 @@ impl<P: Clone + Send + Sync> IsStaticSender for Sender<P> {
         this: &Self,
         protocol: Self::Protocol,
         _with: (),
-    ) -> Result<(), TrySendError<(P, ())>> {
+    ) -> Result<(), SendNowError<(P, ())>> {
         this.sender
             .send(protocol)
-            .map_err(|e| TrySendError::Closed((e.0, ())))
+            .map_err(|e| SendNowError::Closed((e.0, ())))
     }
 
     async fn send_protocol_with(
