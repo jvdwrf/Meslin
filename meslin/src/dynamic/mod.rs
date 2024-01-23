@@ -1,5 +1,5 @@
-mod send_traits;
-pub use send_traits::*;
+mod is_dyn_sender;
+pub use is_dyn_sender::*;
 
 mod dyn_protocol;
 pub use dyn_protocol::*;

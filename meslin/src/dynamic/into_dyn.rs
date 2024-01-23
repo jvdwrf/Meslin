@@ -4,7 +4,7 @@ use crate::*;
 use type_sets::{Members, SubsetOf};
 
 pub trait IntoSender<T> {
-    /// Transform the sender into a [`DynSender<T, W>`].
+    /// Transform the sender into another sender, usually a [`DynSender`].
     fn into_sender(self) -> T;
 }
 
