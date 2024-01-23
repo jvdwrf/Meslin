@@ -1,11 +1,8 @@
-use futures::future::BoxFuture;
+use futures::Future;
 
 use crate::*;
-use std::{
-    future::{Future, IntoFuture},
-    pin::Pin,
-    task::{Context, Poll},
-};
+
+use self::send_futures::{SendFut, SendMsgFut};
 
 /// Trait that must be implemented by all senders.
 #[allow(clippy::len_without_is_empty)]
@@ -79,7 +76,7 @@ pub trait Sends<M>: IsSender {
         futures::executor::block_on(Self::send_msg_with(this, msg, with))
     }
 
-    fn try_send_msg_with(
+    fn send_msg_with_now(
         this: &Self,
         msg: M,
         with: Self::With,
@@ -114,7 +111,7 @@ where
             .map_err(|e| e.map(|(t, w)| (t.try_into().unwrap_silent(), w)))
     }
 
-    fn try_send_msg_with(
+    fn send_msg_with_now(
         this: &Self,
         msg: M,
         with: Self::With,

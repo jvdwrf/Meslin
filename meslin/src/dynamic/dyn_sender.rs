@@ -89,7 +89,10 @@ impl<T, W> DynSender<T, W> {
         W: 'static,
         T: 'static,
     {
-        if R::members().iter().all(|t2| self.accepts_messages().contains(t2)) {
+        if R::members()
+            .iter()
+            .all(|t2| self.accepts_messages().contains(t2))
+        {
             Ok(DynSender::from_inner_unchecked(self.sender))
         } else {
             Err(self)
@@ -110,7 +113,10 @@ impl<T, W> DynSender<T, W> {
         W: 'static,
         T: 'static,
     {
-        if T::members().iter().all(|t2| sender.accepts_messages().contains(t2)) {
+        if T::members()
+            .iter()
+            .all(|t2| sender.accepts_messages().contains(t2))
+        {
             Ok(Self::from_inner_unchecked(sender))
         } else {
             Err(sender)
@@ -229,7 +235,7 @@ where
         }
     }
 
-    fn try_send_msg_with(
+    fn send_msg_with_now(
         this: &Self,
         msg: M,
         with: Self::With,

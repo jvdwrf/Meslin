@@ -8,7 +8,7 @@ pub struct Sender<P> {
 
 /// Re-export of [`async_broadcast::Receiver`].
 pub use async_broadcast::Receiver;
-use futures::Future;
+use ::futures::Future;
 
 impl<P> Sender<P> {
     pub fn inner(&self) -> &async_broadcast::Sender<P> {

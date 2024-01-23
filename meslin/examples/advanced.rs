@@ -37,26 +37,19 @@ async fn main() {
     // And then send messages:
     senders[0].send::<i32>(8).await.unwrap();
     senders[1].send::<i32>(8).await.unwrap();
-    // dyn_senders[0].send::<i16>(8).await.unwrap(); // <- Doesn't compile!
+    // senders[0].send::<i16>(8).await.unwrap(); // <- Doesn't compile!
 
-    // We can still find basic information about the senders:
-    assert_eq!(senders[0].len(), 2);
-    assert_eq!(senders[1].len(), 3);
-    assert_eq!(senders[0].capacity(), None);
-    assert_eq!(senders[1].capacity(), None);
-
-    // We can also still find out whether messages are accepted:
-    assert!(senders[0].accepts::<i16>());
-    assert!(!senders[0].accepts::<i128>());
-    assert!(senders[1].accepts::<i128>());
-    assert!(!senders[1].accepts::<i16>());
-
-    // Which means we can use the `dyn_send` methods.
-    // Instead of not compiling, these methods return an error:
+    // Or use `dynamic` to send messages dynamically:
     senders[0].send::<i16>(8i16).dynamic().await.unwrap();
     senders[0].send::<i128>(8i128).dynamic().await.unwrap_err(); // <- Runtime error!
     senders[1].send::<i128>(8i128).dynamic().await.unwrap();
     senders[1].send::<i16>(8i16).dynamic().await.unwrap_err(); // <- Runtime error!
+
+    // And we can still find basic information about the senders:
+    assert_eq!(senders[0].len(), 3); // like the amount of messages
+    assert_eq!(senders[1].len(), 4);
+    assert_eq!(senders[0].capacity(), None); // and the capacity
+    assert_eq!(senders[1].capacity(), None);
 
     // And the senders can be converted back into their original types:
     let _sender1 = senders[0]

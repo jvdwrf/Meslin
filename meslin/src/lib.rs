@@ -106,8 +106,7 @@ pub use is_sender::*;
 mod sender_wrappers;
 pub use sender_wrappers::*;
 
-mod send_futures;
-pub use send_futures::*;
+pub mod send_futures;
 
 #[cfg(feature = "dynamic")]
 mod dynamic;

@@ -1,9 +1,7 @@
 use crate::*;
+use derive_more::Debug;
 use futures::{executor::block_on, Future};
 use std::future::IntoFuture;
-use derive_more::Debug;
-
-mod impl_traits;
 
 //-------------------------------------
 // SendMsgWith
@@ -29,9 +27,10 @@ impl<'a, S: IsSender, M> SendMsgWithFut<'a, S, M> {
     where
         S: Sends<M>,
     {
-        <S as Sends<M>>::try_send_msg_with(self.inner.sender, self.inner.msg, self.with)
+        <S as Sends<M>>::send_msg_with_now(self.inner.sender, self.inner.msg, self.with)
     }
 
+    #[cfg(feature = "dynamic")]
     #[inline]
     pub fn dynamic(self) -> DynSendMsgWithFut<'a, S, M> {
         DynSendMsgWithFut(self)
@@ -96,6 +95,7 @@ impl<'a, S: IsSender, M> SendMsgFut<'a, S, M> {
         }
     }
 
+    #[cfg(feature = "dynamic")]
     #[inline]
     pub fn dynamic(self) -> SendDynMsgFut<'a, S, M> {
         SendDynMsgFut(self)
@@ -177,6 +177,7 @@ impl<'a, S: IsSender, M: Message> SendWithFut<'a, S, M> {
         RequestWithFut(self)
     }
 
+    #[cfg(feature = "dynamic")]
     #[inline]
     pub fn dynamic(self) -> DynSendWithFut<'a, S, M> {
         DynSendWithFut(self)
@@ -228,6 +229,7 @@ impl<'a, S: IsSender, M: Message> RequestWithFut<'a, S, M> {
         }
     }
 
+    #[cfg(feature = "dynamic")]
     #[inline]
     pub fn dynamic(self) -> DynRequestWithFut<'a, S, M> {
         DynRequestWithFut(DynSendWithFut(self.0))
@@ -309,6 +311,7 @@ impl<'a, S: IsSender, M: Message> SendFut<'a, S, M> {
         }
     }
 
+    #[cfg(feature = "dynamic")]
     #[inline]
     pub fn dynamic(self) -> DynSendFut<'a, S, M> {
         DynSendFut(self)
@@ -366,6 +369,7 @@ impl<'a, S: IsSender, M: Message> RequestFut<'a, S, M> {
         RequestWithFut(self.0.with(with))
     }
 
+    #[cfg(feature = "dynamic")]
     #[inline]
     pub fn dynamic(self) -> DynRequestFut<'a, S, M> {
         DynRequestFut(DynSendFut(self.0))
@@ -401,9 +405,11 @@ where
 // DynSendMsgWith
 //-------------------------------------
 
+#[cfg(feature = "dynamic")]
 #[derive(Debug)]
 pub struct DynSendMsgWithFut<'a, S: IsSender, M>(SendMsgWithFut<'a, S, M>);
 
+#[cfg(feature = "dynamic")]
 impl<'a, S: IsSender, M> DynSendMsgWithFut<'a, S, M> {
     #[inline]
     pub fn wait(self) -> Result<(), DynSendError<(M, S::With)>>
@@ -434,6 +440,7 @@ impl<'a, S: IsSender, M> DynSendMsgWithFut<'a, S, M> {
     }
 }
 
+#[cfg(feature = "dynamic")]
 impl<'a, S: IsSender, M> IntoFuture for DynSendMsgWithFut<'a, S, M>
 where
     S: IsDynSender,
@@ -457,9 +464,11 @@ where
 // DynSendMsg
 //-------------------------------------
 
+#[cfg(feature = "dynamic")]
 #[derive(Debug)]
 pub struct SendDynMsgFut<'a, S: IsSender, M>(SendMsgFut<'a, S, M>);
 
+#[cfg(feature = "dynamic")]
 impl<'a, S: IsSender, M> SendDynMsgFut<'a, S, M> {
     #[inline]
     pub fn with(self, with: S::With) -> DynSendMsgWithFut<'a, S, M> {
@@ -494,6 +503,7 @@ impl<'a, S: IsSender, M> SendDynMsgFut<'a, S, M> {
     }
 }
 
+#[cfg(feature = "dynamic")]
 impl<'a, S: IsSender, M> IntoFuture for SendDynMsgFut<'a, S, M>
 where
     S: IsDynSender,
@@ -514,9 +524,11 @@ where
 // DynSendWith
 //-------------------------------------
 
+#[cfg(feature = "dynamic")]
 #[derive(Debug)]
 pub struct DynSendWithFut<'a, S: IsSender, M: Message>(SendWithFut<'a, S, M>);
 
+#[cfg(feature = "dynamic")]
 impl<'a, S: IsSender, M: Message> DynSendWithFut<'a, S, M> {
     #[inline]
     fn with_msg(self) -> (DynSendMsgWithFut<'a, S, M>, M::Output) {
@@ -558,6 +570,7 @@ impl<'a, S: IsSender, M: Message> DynSendWithFut<'a, S, M> {
     }
 }
 
+#[cfg(feature = "dynamic")]
 impl<'a, S: IsSender, M: Message> IntoFuture for DynSendWithFut<'a, S, M>
 where
     S: IsDynSender,
@@ -584,9 +597,11 @@ where
 // DynRequestWith
 //-------------------------------------
 
+#[cfg(feature = "dynamic")]
 #[derive(Debug)]
 pub struct DynRequestWithFut<'a, S: IsSender, M: Message>(DynSendWithFut<'a, S, M>);
 
+#[cfg(feature = "dynamic")]
 impl<'a, S: IsSender, M: Message> DynRequestWithFut<'a, S, M> {
     #[inline]
     pub fn wait(
@@ -608,6 +623,7 @@ impl<'a, S: IsSender, M: Message> DynRequestWithFut<'a, S, M> {
     }
 }
 
+#[cfg(feature = "dynamic")]
 impl<'a, S: IsSender, M: Message> IntoFuture for DynRequestWithFut<'a, S, M>
 where
     S: IsDynSender,
@@ -638,9 +654,11 @@ where
 // DynSend
 //-------------------------------------
 
+#[cfg(feature = "dynamic")]
 #[derive(Debug)]
 pub struct DynSendFut<'a, S: IsSender, M: Message>(SendFut<'a, S, M>);
 
+#[cfg(feature = "dynamic")]
 impl<'a, S: IsSender, M: Message> DynSendFut<'a, S, M> {
     #[inline]
     pub fn with(self, with: S::With) -> DynSendWithFut<'a, S, M> {
@@ -680,6 +698,7 @@ impl<'a, S: IsSender, M: Message> DynSendFut<'a, S, M> {
     }
 }
 
+#[cfg(feature = "dynamic")]
 impl<'a, S: IsSender, M: Message> IntoFuture for DynSendFut<'a, S, M>
 where
     S: IsDynSender,
@@ -700,9 +719,11 @@ where
 // DynRequest
 //-------------------------------------
 
+#[cfg(feature = "dynamic")]
 #[derive(Debug)]
 pub struct DynRequestFut<'a, S: IsSender, M: Message>(DynSendFut<'a, S, M>);
 
+#[cfg(feature = "dynamic")]
 impl<'a, S: IsSender, M: Message> DynRequestFut<'a, S, M> {
     #[inline]
     pub fn wait(
@@ -729,6 +750,7 @@ impl<'a, S: IsSender, M: Message> DynRequestFut<'a, S, M> {
     }
 }
 
+#[cfg(feature = "dynamic")]
 impl<'a, S: IsSender, M: Message> IntoFuture for DynRequestFut<'a, S, M>
 where
     S: IsDynSender,
