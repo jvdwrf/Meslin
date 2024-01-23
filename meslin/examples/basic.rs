@@ -32,7 +32,11 @@ async fn main() {
     assert_eq!(reply, "The number is 42");
 
     // Send a request and receive the reply immeadiately
-    let reply = sender.request::<Request<i32, String>>(42).await.unwrap();
+    let reply = sender
+        .send::<Request<i32, String>>(42)
+        .recv()
+        .await
+        .unwrap();
     assert_eq!(reply, "The number is 42");
 }
 

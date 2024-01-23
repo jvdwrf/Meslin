@@ -22,7 +22,7 @@ async fn main() {
 
     // We can send messages normally:
     sender1.send::<i32>(8).await.unwrap();
-    sender2.send_with::<i32>(8, 15).await.unwrap(); // Uses `15` as priority
+    sender2.send::<i32>(8).with(15).await.unwrap(); // Uses `15` as priority
     sender2.send::<i32>(8).await.unwrap(); // Uses `u32::default()` as priority
 
     // Or we can map the senders to dynamic senders: (Compile time checked)

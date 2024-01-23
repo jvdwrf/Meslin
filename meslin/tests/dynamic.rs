@@ -20,6 +20,30 @@ async fn test() {
     do_something(sender.clone()).await;
     do_something(dyn_sender).await;
 
+    sender.send::<HelloWorld>("Hello world!").await.unwrap();
+    sender.send::<HelloWorld>("Hello world!").now().unwrap();
+    sender.send::<HelloWorld>("Hello world!").wait().unwrap();
+    sender
+        .send::<HelloWorld>("Hello world!")
+        .with(())
+        .await
+        .unwrap();
+    sender
+        .send::<HelloWorld>("Hello world!")
+        .with(())
+        .now()
+        .unwrap();
+    sender
+        .send::<HelloWorld>("Hello world!")
+        .with(())
+        .wait()
+        .unwrap();
+    sender
+        .send::<HelloWorld>("Hello world!")
+        .with(())
+        .wait()
+        .unwrap();
+
     let boxed_sender = sender.clone().boxed();
     boxed_sender
         .dyn_send::<HelloWorld>("Hello world!")

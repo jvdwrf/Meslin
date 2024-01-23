@@ -109,3 +109,22 @@ impl<T> From<TrySendError<T>> for DynTrySendError<T> {
         }
     }
 }
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Error)]
+pub enum DynRequestError<M, E> {
+    #[error("Message {0:?} was not accepted.")]
+    NotAccepted(M),
+    #[error("Channel is closed: Failed to send message.")]
+    Full(M),
+    #[error("No reply received: {0}")]
+    NoReply(#[source] E),
+}
+
+impl<M, E> From<DynSendError<M>> for DynRequestError<M, E> {
+    fn from(e: DynSendError<M>) -> Self {
+        match e {
+            DynSendError::NotAccepted(m) => Self::NotAccepted(m),
+            DynSendError::Closed(m) => Self::Full(m),
+        }
+    }
+}

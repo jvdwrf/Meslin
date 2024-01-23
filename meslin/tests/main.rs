@@ -43,9 +43,10 @@ async fn test_basic_protocol_sending() {
         .unwrap();
     let (request, _rx) = Request::new(10);
     sender
-        .try_send::<MyProtocol>(MyProtocol::C(request))
+        .send::<MyProtocol>(MyProtocol::C(request))
+        .now()
         .unwrap();
-    sender.try_send::<MyProtocol>(MyProtocol::A(4)).unwrap();
+    sender.send::<MyProtocol>(MyProtocol::A(4)).now().unwrap();
     drop(sender);
 }
 
@@ -74,7 +75,7 @@ async fn test_basic_msg_sending() {
         .await
         .unwrap();
     let (request, _rx) = Request::new(10);
-    sender.try_send_msg(request).unwrap();
+    sender.send_msg(request).now().unwrap();
     drop(sender);
 }
 
@@ -113,8 +114,8 @@ async fn priority() {
     let (tx, rx) = priority::unbounded::<MyProtocol, u32>();
 
     tx.send::<u32>(0u32).await.unwrap();
-    tx.send_with::<u32>(1u32, 2).await.unwrap();
-    tx.send_with::<HelloWorld>("hello", 3).await.unwrap();
+    tx.send::<u32>(1u32).with(2).await.unwrap();
+    tx.send::<HelloWorld>("hello").with(3).await.unwrap();
 
     assert!(matches!(rx.recv().await.unwrap(), (MyProtocol::B(_), _)));
     assert!(matches!(rx.recv().await.unwrap(), (MyProtocol::A(1), _)));
